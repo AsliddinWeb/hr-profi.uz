@@ -128,10 +128,18 @@ export function LiveTab() {
     return map;
   }, [rows]);
 
-  // Show every configured branch in the chip strip, even those with no
-  // employees in today's overview, so the admin can always filter to any
-  // branch (and see an empty list / "—" if it's idle).
-  const visibleBranches = branches;
+  // Show every active branch in the chip strip, even those with no
+  // employees in today's overview, so the admin can always filter to
+  // any branch (and see an empty list / "—" if it's idle). Inactive
+  // (soft-deleted) branches only stay if employees are still attached
+  // — otherwise they'd clutter the bar with permanent zero chips.
+  const visibleBranches = useMemo(
+    () =>
+      branches.filter(
+        (b) => b.is_active || (branchCounts.get(b.id) ?? 0) > 0
+      ),
+    [branches, branchCounts]
+  );
 
   const hasFilters =
     query.trim() !== "" || branchFilter !== "all" || statusFilter !== "all";
