@@ -1,0 +1,25 @@
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+*.log
+
+# OS
+.DS_Store
+
+# Native
+ios/Pods
+ios/build
+android/.gradle
+android/build
+android/app/build
+android/app/release
+
+# Env
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/

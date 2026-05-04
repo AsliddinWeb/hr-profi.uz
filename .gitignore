@@ -1,0 +1,75 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / agent state
+.vscode/
+.idea/
+.claude/
+.cursor/
+.windsurf/
+*.swp
+*.swo
+
+# Env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Node
+node_modules/
+.next/
+.turbo/
+.expo/
+.expo-shared/
+dist-ssr/
+*.local
+
+# Build outputs
+admin-web/dist/
+client-web/.next/
+mobile/.expo/
+mobile/web-build/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+celerybeat-schedule
+celerybeat.pid
+
+# Docker volumes (local dev)
+infra/postgres/data/
+infra/minio/data/
+infra/redis/data/
+
+# Media (local dev)
+backend/media/
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Sentry
+.sentryclirc

@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "WORKTIME PRO",
+    "slug": "worktimepro",
+    "scheme": "worktimepro",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2563eb"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "uz.worktimepro.mobile",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "WORKTIME PRO uses your location to verify check-in within branch geofence.",
+        "NSCameraUsageDescription": "WORKTIME PRO uses the camera for verified check-in selfies."
+      }
+    },
+    "android": {
+      "package": "uz.worktimepro.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#2563eb"
+      },
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION", "CAMERA"]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow WORKTIME PRO to use your location."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "apiUrl": "http://localhost:8000/api/v1",
+      "wsUrl": "ws://localhost:8000/ws"
+    }
+  }
+}

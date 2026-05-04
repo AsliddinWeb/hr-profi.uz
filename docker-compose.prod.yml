@@ -1,0 +1,134 @@
+# Production overrides — kombinatsiya:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Pattern: HOST nginx 80/443 ni egallaydi (boshqa loyihalar bilan birga),
+# bizning servislar `127.0.0.1:81xx` portlariga `bind` qilinadi va host
+# nginx ularga `proxy_pass` qiladi. Traefik yo'q — minimal RAM uchun.
+#
+# RAM siqilgan rejim (~600 MB total):
+#   - api:   gunicorn 1 worker
+#   - celery_worker: --concurrency=1
+#   - postgres: shared_buffers 64MB
+#   - resource limits har bir konteynerda
+services:
+  postgres:
+    # Faqat docker network'da. Tashqaridan o'qilmaydi.
+    ports: !reset []
+    command:
+      - "postgres"
+      - "-c"
+      - "timezone=Asia/Tashkent"
+      - "-c"
+      - "shared_buffers=64MB"
+      - "-c"
+      - "effective_cache_size=192MB"
+      - "-c"
+      - "work_mem=4MB"
+      - "-c"
+      - "max_connections=40"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  redis:
+    ports: !reset []
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
+    deploy:
+      resources:
+        limits:
+          memory: 96M
+
+  minio:
+    # files.hr-profi.uz uchun host nginx 127.0.0.1:9100 ga proxy qiladi.
+    ports:
+      - "127.0.0.1:9100:9000"
+      # Konsol ixtiyoriy — bo'sh qoldirsa ham bo'ladi.
+      - "127.0.0.1:9101:9001"
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        INSTALL_DEV: "false"
+    # Dev volume mount'ni o'chiramiz — image ichidagi build ishlasin.
+    volumes: !override
+      - media:/app/media
+    command: >
+      sh -c "alembic upgrade head &&
+             gunicorn app.main:app
+                -k uvicorn.workers.UvicornWorker
+                -w 1
+                -b 0.0.0.0:8000
+                --access-logfile -
+                --error-logfile -"
+    ports:
+      - "127.0.0.1:8100:8000"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  celery_worker:
+    volumes: !override
+      - media:/app/media
+    command: ["celery", "-A", "app.tasks.celery_app", "worker", "--loglevel=info", "--concurrency=1", "--max-tasks-per-child=100"]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  celery_beat:
+    volumes: !override
+      - media:/app/media
+    deploy:
+      resources:
+        limits:
+          memory: 96M
+
+  admin_web:
+    profiles: ["web", ""]   # `web` profile shartini olib tashlaymiz
+    build:
+      context: ./admin-web
+      dockerfile: Dockerfile
+      args:
+        # Admin-web ichidagi nginx /api/v1 ni proxy qiladi (same-origin, CORSsiz).
+        VITE_API_URL: /api/v1
+        VITE_WS_URL: /ws
+    ports:
+      - "127.0.0.1:8101:80"
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+  client_web:
+    profiles: ["web", ""]
+    build:
+      context: ./client-web
+      dockerfile: Dockerfile
+      args:
+        API_PROXY_TARGET: http://api:8000
+    ports:
+      - "127.0.0.1:8102:5174"
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+
+  landing:
+    build:
+      context: ./infra/landing
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8103:80"
+    deploy:
+      resources:
+        limits:
+          memory: 32M

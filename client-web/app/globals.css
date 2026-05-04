@@ -1,0 +1,183 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #f8fafc;
+  --text: #0f172a;
+  --text-muted: #64748b;
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --input-bg: #ffffff;
+  --input-border: #e2e8f0;
+  --input-text: #0f172a;
+  --input-placeholder: #94a3b8;
+  --topnav-bg: rgba(255, 255, 255, 0.95);
+  --label: #64748b;
+  --secondary-bg: #f1f5f9;
+  --secondary-text: #334155;
+  --secondary-hover: #e2e8f0;
+}
+
+html.dark {
+  --bg: #0b1220;
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --card-bg: #111827;
+  --card-border: #1f2937;
+  --input-bg: #0f172a;
+  --input-border: #1f2937;
+  --input-text: #e2e8f0;
+  --input-placeholder: #64748b;
+  --topnav-bg: rgba(15, 23, 42, 0.92);
+  --label: #94a3b8;
+  --secondary-bg: #1e293b;
+  --secondary-text: #cbd5e1;
+  --secondary-hover: #334155;
+}
+
+html,
+body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+  /* Use the iOS safe area so the bottom nav doesn't hide behind the home
+     indicator on notched devices. */
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white shadow-sm shadow-brand-600/30 hover:bg-brand-700 active:scale-[0.98];
+  }
+  .btn-secondary {
+    @apply btn active:scale-[0.98];
+    background: var(--secondary-bg);
+    color: var(--secondary-text);
+  }
+  .btn-secondary:hover {
+    background: var(--secondary-hover);
+  }
+  .btn-danger {
+    @apply btn bg-rose-600 text-white shadow-sm hover:bg-rose-700 active:scale-[0.98];
+  }
+  .btn-block {
+    @apply w-full;
+  }
+  .input {
+    @apply block w-full rounded-xl border-0 px-3.5 py-3 text-sm ring-1 ring-inset transition focus:outline-none focus:ring-2 focus:ring-brand-500;
+    background: var(--input-bg);
+    color: var(--input-text);
+    --tw-ring-color: var(--input-border);
+  }
+  .input::placeholder {
+    color: var(--input-placeholder);
+  }
+  .input:disabled {
+    opacity: 0.6;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide;
+    color: var(--label);
+  }
+  .card {
+    @apply rounded-2xl border shadow-sm;
+    background: var(--card-bg);
+    border-color: var(--card-border);
+  }
+}
+
+/* Hide camera capture flash by default */
+video,
+canvas {
+  display: block;
+}
+
+/* -------------------------------------------------------------------------
+ * Dark-mode auto-remap.
+ *
+ * The pages were authored against a single light palette (text-slate-900 for
+ * headlines, bg-slate-50/100 for chips, ring-slate-200 for borders, the usual
+ * pastel-50 + 700 pairs for status pills). Rather than dual-class every line
+ * (`bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300`)
+ * we remap once here. Anywhere we want a custom override, an explicit
+ * `dark:...` variant wins because it's appended later by Tailwind's JIT.
+ *
+ * Keep this list focused on what's actually used in the codebase — adding a
+ * shade we don't render anywhere just bloats the CSS bundle.
+ * ---------------------------------------------------------------------- */
+@layer utilities {
+  /* --- Surfaces -------------------------------------------------------- */
+  :where(html.dark) .bg-white { background-color: #111827; }
+  :where(html.dark) .bg-slate-50 { background-color: #0f172a; }
+  :where(html.dark) .bg-slate-100 { background-color: #1e293b; }
+  :where(html.dark) .bg-slate-200 { background-color: #334155; }
+
+  :where(html.dark) .border-slate-100 { border-color: #1e293b; }
+  :where(html.dark) .border-slate-200 { border-color: #1f2937; }
+  :where(html.dark) .ring-slate-200 { --tw-ring-color: #334155; }
+  :where(html.dark) .ring-slate-100 { --tw-ring-color: #1e293b; }
+  :where(html.dark) .divide-slate-200 > :not([hidden]) ~ :not([hidden]) { border-color: #1f2937; }
+
+  :where(html.dark) .bg-white\/95 { background-color: rgba(15, 23, 42, 0.92); }
+  :where(html.dark) .bg-white\/85 { background-color: rgba(15, 23, 42, 0.85); }
+
+  /* --- Text ------------------------------------------------------------ */
+  :where(html.dark) .text-slate-900 { color: #f1f5f9; }
+  :where(html.dark) .text-slate-800 { color: #e2e8f0; }
+  :where(html.dark) .text-slate-700 { color: #cbd5e1; }
+  :where(html.dark) .text-slate-600 { color: #cbd5e1; }
+  :where(html.dark) .text-slate-500 { color: #94a3b8; }
+  :where(html.dark) .text-slate-400 { color: #64748b; }
+  :where(html.dark) .text-slate-300 { color: #475569; }
+
+  /* --- Brand ----------------------------------------------------------- */
+  :where(html.dark) .bg-brand-50 { background-color: rgba(99, 102, 241, 0.15); }
+  :where(html.dark) .bg-brand-50\/50 { background-color: rgba(99, 102, 241, 0.1); }
+  :where(html.dark) .bg-brand-100 { background-color: rgba(99, 102, 241, 0.25); }
+  :where(html.dark) .text-brand-700 { color: #a5b4fc; }
+  :where(html.dark) .text-brand-800 { color: #c7d2fe; }
+  :where(html.dark) .ring-brand-200 { --tw-ring-color: rgba(129, 140, 248, 0.45); }
+  :where(html.dark) .ring-brand-100 { --tw-ring-color: rgba(99, 102, 241, 0.35); }
+  :where(html.dark) .border-brand-200 { border-color: rgba(99, 102, 241, 0.4); }
+  :where(html.dark) .border-brand-300 { border-color: rgba(99, 102, 241, 0.55); }
+
+  /* --- Status palettes (badges + tiles) -------------------------------- */
+  :where(html.dark) .bg-emerald-50 { background-color: rgba(16, 185, 129, 0.15); }
+  :where(html.dark) .bg-emerald-100 { background-color: rgba(16, 185, 129, 0.25); }
+  :where(html.dark) .text-emerald-700 { color: #6ee7b7; }
+  :where(html.dark) .text-emerald-800 { color: #a7f3d0; }
+  :where(html.dark) .text-emerald-900 { color: #d1fae5; }
+  :where(html.dark) .ring-emerald-200 { --tw-ring-color: rgba(52, 211, 153, 0.45); }
+  :where(html.dark) .border-emerald-200 { border-color: rgba(16, 185, 129, 0.35); }
+
+  :where(html.dark) .bg-amber-50 { background-color: rgba(245, 158, 11, 0.15); }
+  :where(html.dark) .bg-amber-100 { background-color: rgba(245, 158, 11, 0.25); }
+  :where(html.dark) .text-amber-700 { color: #fcd34d; }
+  :where(html.dark) .text-amber-800 { color: #fde68a; }
+  :where(html.dark) .text-amber-900 { color: #fef3c7; }
+  :where(html.dark) .ring-amber-200 { --tw-ring-color: rgba(252, 211, 77, 0.45); }
+  :where(html.dark) .border-amber-200 { border-color: rgba(245, 158, 11, 0.35); }
+
+  :where(html.dark) .bg-rose-50 { background-color: rgba(244, 63, 94, 0.15); }
+  :where(html.dark) .bg-rose-100 { background-color: rgba(244, 63, 94, 0.25); }
+  :where(html.dark) .text-rose-600 { color: #fda4af; }
+  :where(html.dark) .text-rose-700 { color: #fda4af; }
+  :where(html.dark) .text-rose-800 { color: #fecdd3; }
+  :where(html.dark) .ring-rose-200 { --tw-ring-color: rgba(251, 113, 133, 0.45); }
+  :where(html.dark) .border-rose-200 { border-color: rgba(244, 63, 94, 0.35); }
+
+  :where(html.dark) .bg-sky-100 { background-color: rgba(14, 165, 233, 0.25); }
+  :where(html.dark) .text-sky-700 { color: #7dd3fc; }
+  :where(html.dark) .text-sky-800 { color: #bae6fd; }
+
+  :where(html.dark) .bg-indigo-50 { background-color: rgba(99, 102, 241, 0.15); }
+  :where(html.dark) .bg-indigo-100 { background-color: rgba(99, 102, 241, 0.25); }
+  :where(html.dark) .text-indigo-700 { color: #a5b4fc; }
+  :where(html.dark) .text-indigo-800 { color: #c7d2fe; }
+  :where(html.dark) .ring-indigo-200 { --tw-ring-color: rgba(129, 140, 248, 0.45); }
+}

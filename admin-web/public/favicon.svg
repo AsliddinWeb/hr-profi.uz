@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Hr-Profi PWA app icon. Two-layer mark:
+  - rounded-square brand background (indigo gradient → reads on light + dark)
+  - bold "HP" monogram + small clock dot (HR + time tracking) — geometry
+    keeps stroking visible down to favicon sizes
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Hr-Profi">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#4338ca"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#g)"/>
+  <g fill="#ffffff">
+    <!-- H (left strokes + crossbar) -->
+    <rect x="48" y="68" width="22" height="120" rx="4"/>
+    <rect x="48" y="116" width="62" height="22" rx="4"/>
+    <rect x="88" y="68" width="22" height="120" rx="4"/>
+    <!-- P (vertical + bowl) -->
+    <rect x="146" y="68" width="22" height="120" rx="4"/>
+    <path d="M 168 68 h 26 a 32 32 0 0 1 0 64 h -26 v -22 h 26 a 10 10 0 0 0 0 -20 h -26 z"/>
+  </g>
+  <!-- Clock dot bottom-right — reinforces "time tracking" identity -->
+  <circle cx="200" cy="200" r="22" fill="#ffffff" opacity="0.92"/>
+  <path d="M 200 184 v 18 l 12 8" stroke="#4338ca" stroke-width="5" stroke-linecap="round" fill="none"/>
+</svg>

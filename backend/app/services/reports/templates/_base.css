@@ -1,0 +1,178 @@
+/* Shared print styles for every report PDF. WeasyPrint maps these to
+ * PDF primitives — no JS, no fancy fonts (DejaVu is bundled in the
+ * image). The @page rule controls page size + margins; ``thead``
+ * repeats automatically across page breaks because we set
+ * ``display: table-header-group``.
+ */
+
+@page {
+  size: A4 landscape;
+  margin: 14mm 12mm 16mm 12mm;
+  @bottom-right {
+    content: counter(page) " / " counter(pages);
+    font-family: "DejaVu Sans", sans-serif;
+    font-size: 9pt;
+    color: #64748b;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "DejaVu Sans", sans-serif;
+  color: #0f172a;
+  font-size: 9pt;
+  margin: 0;
+}
+
+header.report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-bottom: 2px solid #4f46e5;
+  padding-bottom: 6mm;
+  margin-bottom: 6mm;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 4mm;
+}
+
+.brand-logo {
+  width: 14mm;
+  height: 14mm;
+  border-radius: 3mm;
+  background: #eef2ff;
+  color: #4f46e5;
+  font-weight: 800;
+  font-size: 16pt;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-text h1 {
+  font-size: 16pt;
+  margin: 0;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.brand-text .company {
+  font-size: 10pt;
+  color: #64748b;
+  margin-top: 1mm;
+}
+
+.report-meta {
+  text-align: right;
+  font-size: 9pt;
+  color: #475569;
+  line-height: 1.4;
+}
+
+.report-meta b {
+  color: #1e293b;
+}
+
+table.data {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 8.5pt;
+}
+
+table.data thead {
+  display: table-header-group;
+}
+
+table.data thead th {
+  background: #4f46e5;
+  color: white;
+  text-align: left;
+  padding: 2mm 2.5mm;
+  font-weight: 600;
+  font-size: 8pt;
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+table.data thead th:last-child {
+  border-right: none;
+}
+
+table.data tbody td {
+  padding: 2mm 2.5mm;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: top;
+}
+
+table.data tbody tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+table.data tbody td.numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.totals-row td {
+  background: #f1f5f9 !important;
+  border-top: 2px solid #4f46e5;
+  font-weight: 700;
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 0.5mm 2mm;
+  border-radius: 2mm;
+  font-size: 7.5pt;
+  font-weight: 600;
+}
+
+.status-pill.PRESENT, .status-pill.READY {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-pill.LATE {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-pill.ABSENT, .status-pill.FAILED {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status-pill.ON_LEAVE {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.status-pill.REST_DAY, .status-pill.NOT_SCHEDULED, .status-pill.PENDING {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.signatures {
+  margin-top: 12mm;
+  display: flex;
+  gap: 30mm;
+  page-break-inside: avoid;
+}
+
+.signature {
+  flex: 1;
+  border-top: 1px solid #94a3b8;
+  padding-top: 2mm;
+  font-size: 9pt;
+  color: #475569;
+}
+
+.signature .role {
+  font-weight: 600;
+  color: #1e293b;
+}

@@ -1,0 +1,435 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --page-bg: #f7f7fb;
+    --card-bg: #ffffff;
+    --card-border: #ececf3;
+    --text: #0f172a;
+    --text-muted: #64748b;
+  }
+
+  /* Dark theme — activated by adding ``.dark`` to <html> via the theme
+   * boot script. Tones tuned to match the client-web palette so the two
+   * surfaces look like the same product.
+   */
+  html.dark {
+    color-scheme: dark;
+    --page-bg: #0b1220;
+    --card-bg: #111827;
+    --card-border: #1f2937;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    background: var(--page-bg);
+    color: var(--text);
+    font-feature-settings: "cv11", "ss01", "ss02";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Hide native number input spin buttons (cleaner monetary fields). */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+}
+
+@layer components {
+  /* ---------- Buttons -------------------------------------------------- */
+  .btn {
+    @apply inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-sm font-medium leading-none transition-all duration-150;
+    @apply disabled:pointer-events-none disabled:opacity-50;
+    height: 2.5rem;
+  }
+  .btn-sm {
+    @apply h-8 rounded-md px-3 text-xs;
+  }
+  .btn-icon {
+    @apply inline-flex size-9 items-center justify-center rounded-lg transition-colors hover:bg-ink-100 active:bg-ink-200;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white shadow-sm hover:bg-brand-700 active:bg-brand-800;
+  }
+  .btn-secondary {
+    @apply btn bg-white text-ink-900 ring-1 ring-inset ring-ink-200 hover:bg-ink-50 active:bg-ink-100;
+  }
+  .btn-danger {
+    @apply btn bg-red-600 text-white shadow-sm hover:bg-red-700 active:bg-red-800;
+  }
+  .btn-success {
+    @apply btn bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 active:bg-emerald-800;
+  }
+  .btn-ghost {
+    @apply btn bg-transparent text-ink-700 hover:bg-ink-100 active:bg-ink-200;
+  }
+
+  /* ---------- Inputs --------------------------------------------------- */
+  .input {
+    @apply block w-full rounded-lg border-0 bg-white px-3.5 text-sm leading-none text-ink-900 ring-1 ring-inset ring-ink-200 transition-colors;
+    @apply placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-brand-500;
+    @apply disabled:cursor-not-allowed disabled:bg-ink-50 disabled:text-ink-500;
+    height: 2.5rem;
+  }
+  textarea.input {
+    @apply h-auto py-2.5;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-medium uppercase tracking-wide text-ink-500;
+  }
+
+  /* ---------- Cards ---------------------------------------------------- */
+  .card {
+    @apply rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] shadow-card;
+  }
+  .card-header {
+    @apply flex items-center justify-between gap-3 border-b border-[var(--card-border)] px-4 py-3 sm:px-6 sm:py-4;
+  }
+  .card-body {
+    @apply p-4 sm:p-6;
+  }
+  .card-tight {
+    @apply rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] shadow-card;
+  }
+
+  /* ---------- Page header --------------------------------------------- */
+  .page-title {
+    @apply text-xl font-semibold tracking-tight text-ink-900 sm:text-2xl;
+  }
+  .page-description {
+    @apply mt-1 text-xs text-ink-500 sm:text-sm;
+  }
+
+  /* ---------- Tables --------------------------------------------------- */
+  .data-table {
+    @apply w-full text-left text-sm;
+  }
+  .data-table thead {
+    @apply bg-ink-50/60 text-xs uppercase tracking-wide text-ink-500;
+  }
+  .data-table th {
+    @apply whitespace-nowrap px-5 py-3 font-medium first:pl-6 last:pr-6;
+  }
+  .data-table tbody tr {
+    @apply border-t border-[var(--card-border)] transition-colors hover:bg-ink-50/60;
+  }
+  .data-table td {
+    @apply whitespace-nowrap px-5 py-3.5 first:pl-6 last:pr-6;
+  }
+
+  /* ---------- Sidebar nav --------------------------------------------- */
+  .nav-section {
+    @apply px-3 pb-2 pt-4 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-400;
+  }
+  .nav-link {
+    @apply flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-ink-600 transition-colors;
+    @apply hover:bg-ink-100 hover:text-ink-900;
+  }
+  .nav-link-active {
+    @apply bg-brand-50 text-brand-700 hover:bg-brand-100 hover:text-brand-700;
+  }
+
+  /* ---------- Status pills (accessible variant) ----------------------- */
+  .pill {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  .pill-success { @apply bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200/70; }
+  .pill-warning { @apply bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200/70; }
+  .pill-danger  { @apply bg-red-50 text-red-700 ring-1 ring-inset ring-red-200/70; }
+  .pill-info    { @apply bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-200/70; }
+  .pill-neutral { @apply bg-ink-100 text-ink-700 ring-1 ring-inset ring-ink-200/70; }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: theme(colors.ink.300) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: theme(colors.ink.300);
+    border-radius: 9999px;
+  }
+}
+
+/* -------------------------------------------------------------------------
+ * Dark-mode auto-remap.
+ *
+ * The admin-web pages were authored against a light palette (ink-* slates,
+ * white cards, pastel-50 + 700 status pills). Re-authoring every page is
+ * impractical, so we one-shot remap the most-used utility classes here.
+ * Anywhere a per-component override is needed an explicit ``dark:...``
+ * class wins because it's higher specificity than ``:where(html.dark)``.
+ *
+ * Tones mirror the client-web admin so the two surfaces feel cohesive.
+ * ---------------------------------------------------------------------- */
+@layer utilities {
+  /* --- Surfaces -------------------------------------------------------- */
+  :where(html.dark) .bg-white { background-color: #111827; }
+  :where(html.dark) .bg-white\/95 { background-color: rgba(15, 23, 42, 0.92); }
+  :where(html.dark) .bg-white\/85 { background-color: rgba(15, 23, 42, 0.85); }
+  :where(html.dark) .bg-white\/80 { background-color: rgba(15, 23, 42, 0.78); }
+  :where(html.dark) .bg-white\/70 { background-color: rgba(17, 24, 39, 0.7); }
+  :where(html.dark) .bg-white\/60 { background-color: rgba(17, 24, 39, 0.6); }
+  :where(html.dark) .bg-white\/40 { background-color: rgba(17, 24, 39, 0.4); }
+  :where(html.dark) .bg-white\/20 { background-color: rgba(17, 24, 39, 0.2); }
+  :where(html.dark) .bg-ink-50 { background-color: #0f172a; }
+  :where(html.dark) .bg-ink-50\/60 { background-color: rgba(15, 23, 42, 0.6); }
+  :where(html.dark) .bg-ink-100 { background-color: #1e293b; }
+  :where(html.dark) .bg-ink-200 { background-color: #334155; }
+  :where(html.dark) .bg-ink-400 { background-color: #475569; }
+  /* bg-ink-900 / bg-slate-700 / bg-slate-900 intentionally NOT remapped —
+   * they're used for modal backdrops (`bg-slate-900/40`), code blocks,
+   * dark accent buttons (`bg-slate-700 text-white`) and a dark active
+   * state in the UserMenu. Inverting them would break their `text-white`
+   * companions and turn modal scrims into bright overlays. */
+
+  /* Slate scale shows up everywhere — sidebar hovers, table stripes,
+   * skeleton placeholders. Map only the lighter ranks (50–300) onto the
+   * dark surface scale so light leaks don't break contrast. */
+  :where(html.dark) .bg-slate-50 { background-color: #0f172a; }
+  :where(html.dark) .bg-slate-50\/30 { background-color: rgba(15, 23, 42, 0.3); }
+  :where(html.dark) .bg-slate-50\/50 { background-color: rgba(15, 23, 42, 0.5); }
+  :where(html.dark) .bg-slate-50\/60 { background-color: rgba(15, 23, 42, 0.6); }
+  :where(html.dark) .bg-slate-50\/70 { background-color: rgba(15, 23, 42, 0.7); }
+  :where(html.dark) .bg-slate-100 { background-color: #1e293b; }
+  :where(html.dark) .bg-slate-200 { background-color: #334155; }
+  :where(html.dark) .bg-slate-200\/60 { background-color: rgba(51, 65, 85, 0.45); }
+  :where(html.dark) .bg-slate-300 { background-color: #475569; }
+
+  :where(html.dark) .border-ink-100 { border-color: #1e293b; }
+  :where(html.dark) .border-ink-200 { border-color: #1f2937; }
+  :where(html.dark) .border-slate-100 { border-color: #1e293b; }
+  :where(html.dark) .border-slate-200 { border-color: #1f2937; }
+  :where(html.dark) .border-slate-200\/50 { border-color: rgba(31, 41, 55, 0.5); }
+  :where(html.dark) .border-slate-300 { border-color: #334155; }
+  :where(html.dark) .border-white { border-color: #1f2937; }
+
+  :where(html.dark) .ring-ink-100 { --tw-ring-color: #1e293b; }
+  :where(html.dark) .ring-ink-200 { --tw-ring-color: #334155; }
+  :where(html.dark) .ring-slate-200 { --tw-ring-color: #334155; }
+  :where(html.dark) .ring-slate-300 { --tw-ring-color: #475569; }
+  :where(html.dark) .ring-white { --tw-ring-color: #1f2937; }
+
+  :where(html.dark) .divide-ink-200 > :not([hidden]) ~ :not([hidden]) { border-color: #1f2937; }
+  :where(html.dark) .divide-slate-200 > :not([hidden]) ~ :not([hidden]) { border-color: #1f2937; }
+
+  /* --- Text ------------------------------------------------------------ */
+  :where(html.dark) .text-ink-900 { color: #f1f5f9; }
+  :where(html.dark) .text-ink-800 { color: #e2e8f0; }
+  :where(html.dark) .text-ink-700 { color: #cbd5e1; }
+  :where(html.dark) .text-ink-600 { color: #cbd5e1; }
+  :where(html.dark) .text-ink-500 { color: #94a3b8; }
+  :where(html.dark) .text-ink-400 { color: #64748b; }
+  :where(html.dark) .text-ink-300 { color: #475569; }
+  :where(html.dark) .text-slate-900 { color: #f1f5f9; }
+  :where(html.dark) .text-slate-800 { color: #e2e8f0; }
+  :where(html.dark) .text-slate-700 { color: #cbd5e1; }
+  :where(html.dark) .text-slate-600 { color: #cbd5e1; }
+  :where(html.dark) .text-slate-500 { color: #94a3b8; }
+  :where(html.dark) .text-slate-400 { color: #64748b; }
+
+  /* --- Brand (violet) -------------------------------------------------- */
+  :where(html.dark) .bg-brand-50 { background-color: rgba(139, 92, 246, 0.15); }
+  :where(html.dark) .bg-brand-100 { background-color: rgba(139, 92, 246, 0.25); }
+  :where(html.dark) .text-brand-700 { color: #c4b5fd; }
+  :where(html.dark) .text-brand-800 { color: #ddd6fe; }
+  :where(html.dark) .text-brand-600 { color: #c4b5fd; }
+  :where(html.dark) .ring-brand-200 { --tw-ring-color: rgba(167, 139, 250, 0.45); }
+  :where(html.dark) .ring-brand-200\/70 { --tw-ring-color: rgba(167, 139, 250, 0.4); }
+  :where(html.dark) .border-brand-200 { border-color: rgba(139, 92, 246, 0.4); }
+  :where(html.dark) .border-brand-300 { border-color: rgba(139, 92, 246, 0.55); }
+
+  /* --- Status palettes (badges + tiles) -------------------------------- */
+  :where(html.dark) .bg-emerald-50 { background-color: rgba(16, 185, 129, 0.15); }
+  :where(html.dark) .bg-emerald-100 { background-color: rgba(16, 185, 129, 0.25); }
+  :where(html.dark) .text-emerald-700 { color: #6ee7b7; }
+  :where(html.dark) .text-emerald-800 { color: #a7f3d0; }
+  :where(html.dark) .text-emerald-900 { color: #d1fae5; }
+  :where(html.dark) .ring-emerald-200 { --tw-ring-color: rgba(52, 211, 153, 0.45); }
+  :where(html.dark) .ring-emerald-200\/70 { --tw-ring-color: rgba(52, 211, 153, 0.4); }
+  :where(html.dark) .border-emerald-200 { border-color: rgba(16, 185, 129, 0.35); }
+
+  :where(html.dark) .bg-amber-50 { background-color: rgba(245, 158, 11, 0.15); }
+  :where(html.dark) .bg-amber-100 { background-color: rgba(245, 158, 11, 0.25); }
+  :where(html.dark) .text-amber-700 { color: #fcd34d; }
+  :where(html.dark) .text-amber-800 { color: #fde68a; }
+  :where(html.dark) .text-amber-900 { color: #fef3c7; }
+  :where(html.dark) .ring-amber-200 { --tw-ring-color: rgba(252, 211, 77, 0.45); }
+  :where(html.dark) .ring-amber-200\/70 { --tw-ring-color: rgba(252, 211, 77, 0.4); }
+  :where(html.dark) .border-amber-200 { border-color: rgba(245, 158, 11, 0.35); }
+
+  :where(html.dark) .bg-red-50 { background-color: rgba(239, 68, 68, 0.15); }
+  :where(html.dark) .bg-red-100 { background-color: rgba(239, 68, 68, 0.25); }
+  :where(html.dark) .text-red-700 { color: #fca5a5; }
+  :where(html.dark) .text-red-800 { color: #fecaca; }
+  :where(html.dark) .ring-red-200\/70 { --tw-ring-color: rgba(252, 165, 165, 0.4); }
+  :where(html.dark) .bg-rose-50 { background-color: rgba(244, 63, 94, 0.15); }
+  :where(html.dark) .bg-rose-100 { background-color: rgba(244, 63, 94, 0.25); }
+  :where(html.dark) .text-rose-700 { color: #fda4af; }
+  :where(html.dark) .text-rose-800 { color: #fecdd3; }
+  :where(html.dark) .ring-rose-200 { --tw-ring-color: rgba(251, 113, 133, 0.45); }
+
+  :where(html.dark) .bg-sky-50 { background-color: rgba(14, 165, 233, 0.15); }
+  :where(html.dark) .bg-sky-100 { background-color: rgba(14, 165, 233, 0.25); }
+  :where(html.dark) .text-sky-700 { color: #7dd3fc; }
+  :where(html.dark) .text-sky-800 { color: #bae6fd; }
+  :where(html.dark) .ring-sky-200 { --tw-ring-color: rgba(125, 211, 252, 0.45); }
+
+  :where(html.dark) .bg-indigo-50 { background-color: rgba(99, 102, 241, 0.15); }
+  :where(html.dark) .bg-indigo-100 { background-color: rgba(99, 102, 241, 0.25); }
+  :where(html.dark) .text-indigo-700 { color: #a5b4fc; }
+  :where(html.dark) .text-indigo-800 { color: #c7d2fe; }
+  :where(html.dark) .ring-indigo-200 { --tw-ring-color: rgba(129, 140, 248, 0.45); }
+
+  /* Shadows tuned for light surfaces use slate-900-alpha — barely visible
+   * on a near-black dark page. Replace with pure-black + higher alpha so
+   * elevation still reads. Skip ``shadow-focus`` (brand-coloured ring,
+   * already legible).
+   */
+  :where(html.dark) .shadow-card {
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.5),
+      0 1px 3px rgba(0, 0, 0, 0.45);
+  }
+  :where(html.dark) .shadow-pop {
+    box-shadow:
+      0 12px 32px rgba(0, 0, 0, 0.6),
+      0 2px 6px rgba(0, 0, 0, 0.45);
+  }
+  :where(html.dark) .shadow-sm {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+
+  /* --- Hover variants ------------------------------------------------- */
+  /* Tailwind compiles ``hover:bg-slate-50`` to ``.hover\:bg-slate-50:hover``
+   * so we have to remap the hovered selector explicitly — the base
+   * ``bg-slate-50`` rules above don't fire on a class that only exists
+   * in the :hover state. */
+  :where(html.dark) .hover\:bg-slate-50:hover { background-color: #0f172a; }
+  :where(html.dark) .hover\:bg-slate-50\/50:hover { background-color: rgba(15, 23, 42, 0.5); }
+  :where(html.dark) .hover\:bg-slate-50\/70:hover { background-color: rgba(15, 23, 42, 0.7); }
+  :where(html.dark) .hover\:bg-slate-100:hover { background-color: #1e293b; }
+  :where(html.dark) .hover\:bg-slate-200:hover { background-color: #334155; }
+  :where(html.dark) .hover\:bg-slate-200\/60:hover { background-color: rgba(51, 65, 85, 0.4); }
+  :where(html.dark) .hover\:bg-ink-50:hover { background-color: #0f172a; }
+  :where(html.dark) .hover\:bg-ink-50\/60:hover { background-color: rgba(15, 23, 42, 0.6); }
+  :where(html.dark) .hover\:bg-ink-100:hover { background-color: #1e293b; }
+  :where(html.dark) .hover\:bg-brand-50:hover { background-color: rgba(139, 92, 246, 0.18); }
+  :where(html.dark) .hover\:bg-brand-50\/30:hover { background-color: rgba(139, 92, 246, 0.1); }
+  :where(html.dark) .hover\:bg-brand-50\/40:hover { background-color: rgba(139, 92, 246, 0.14); }
+  :where(html.dark) .hover\:bg-brand-50\/50:hover { background-color: rgba(139, 92, 246, 0.16); }
+  :where(html.dark) .hover\:bg-brand-100:hover { background-color: rgba(139, 92, 246, 0.28); }
+  :where(html.dark) .hover\:bg-emerald-50:hover { background-color: rgba(16, 185, 129, 0.18); }
+  :where(html.dark) .hover\:bg-emerald-50\/50:hover { background-color: rgba(16, 185, 129, 0.12); }
+  :where(html.dark) .hover\:bg-emerald-100:hover { background-color: rgba(16, 185, 129, 0.28); }
+  :where(html.dark) .hover\:bg-amber-50:hover { background-color: rgba(245, 158, 11, 0.18); }
+  :where(html.dark) .hover\:bg-amber-100:hover { background-color: rgba(245, 158, 11, 0.28); }
+  :where(html.dark) .hover\:bg-rose-50:hover { background-color: rgba(244, 63, 94, 0.18); }
+  :where(html.dark) .hover\:bg-rose-100:hover { background-color: rgba(244, 63, 94, 0.28); }
+  :where(html.dark) .hover\:bg-indigo-100:hover { background-color: rgba(99, 102, 241, 0.28); }
+  :where(html.dark) .hover\:bg-sky-100:hover { background-color: rgba(14, 165, 233, 0.28); }
+  :where(html.dark) .hover\:border-slate-300:hover { border-color: #475569; }
+
+  /* --- Gradient stops -------------------------------------------------- */
+  /* Light pastel gradients (``from-slate-50``, ``to-amber-100``) on dark
+   * pages can flash near-white. Re-tone the from/to/via colors so the
+   * gradient stays soft. */
+  :where(html.dark) .from-white { --tw-gradient-from: #111827 var(--tw-gradient-from-position); --tw-gradient-to: rgba(17, 24, 39, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  :where(html.dark) .from-slate-50 { --tw-gradient-from: #0f172a var(--tw-gradient-from-position); --tw-gradient-to: rgba(15, 23, 42, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  :where(html.dark) .from-slate-300 { --tw-gradient-from: #334155 var(--tw-gradient-from-position); --tw-gradient-to: rgba(51, 65, 85, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  :where(html.dark) .from-brand-50 { --tw-gradient-from: rgba(139, 92, 246, 0.16) var(--tw-gradient-from-position); --tw-gradient-to: rgba(139, 92, 246, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  :where(html.dark) .from-emerald-50 { --tw-gradient-from: rgba(16, 185, 129, 0.16) var(--tw-gradient-from-position); --tw-gradient-to: rgba(16, 185, 129, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  :where(html.dark) .from-amber-50 { --tw-gradient-from: rgba(245, 158, 11, 0.16) var(--tw-gradient-from-position); --tw-gradient-to: rgba(245, 158, 11, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  :where(html.dark) .from-rose-50 { --tw-gradient-from: rgba(244, 63, 94, 0.16) var(--tw-gradient-from-position); --tw-gradient-to: rgba(244, 63, 94, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+  :where(html.dark) .from-orange-50 { --tw-gradient-from: rgba(249, 115, 22, 0.16) var(--tw-gradient-from-position); --tw-gradient-to: rgba(249, 115, 22, 0) var(--tw-gradient-to-position); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
+
+  :where(html.dark) .to-slate-100 { --tw-gradient-to: #1e293b var(--tw-gradient-to-position); }
+  :where(html.dark) .to-slate-500 { --tw-gradient-to: #94a3b8 var(--tw-gradient-to-position); }
+  :where(html.dark) .to-brand-100 { --tw-gradient-to: rgba(139, 92, 246, 0.28) var(--tw-gradient-to-position); }
+  :where(html.dark) .to-emerald-100\/60 { --tw-gradient-to: rgba(16, 185, 129, 0.16) var(--tw-gradient-to-position); }
+  :where(html.dark) .to-rose-100\/60 { --tw-gradient-to: rgba(244, 63, 94, 0.16) var(--tw-gradient-to-position); }
+  :where(html.dark) .to-amber-100 { --tw-gradient-to: rgba(245, 158, 11, 0.28) var(--tw-gradient-to-position); }
+  :where(html.dark) .to-amber-100\/70 { --tw-gradient-to: rgba(245, 158, 11, 0.2) var(--tw-gradient-to-position); }
+  :where(html.dark) .to-yellow-50 { --tw-gradient-to: rgba(234, 179, 8, 0.12) var(--tw-gradient-to-position); }
+  :where(html.dark) .to-yellow-100 { --tw-gradient-to: rgba(234, 179, 8, 0.28) var(--tw-gradient-to-position); }
+  :where(html.dark) .to-orange-100 { --tw-gradient-to: rgba(249, 115, 22, 0.28) var(--tw-gradient-to-position); }
+
+  /* --- Component class overrides --------------------------------------
+   * @apply expands at compile-time, inlining colors directly into the
+   * .input / .btn-secondary / .btn-icon rules. Those rules don't carry
+   * the .bg-white class, so the utility-level dark remaps above won't
+   * touch them. We override the compiled component selectors here.
+   */
+  :where(html.dark) .btn-secondary {
+    background-color: #111827;
+    color: #e2e8f0;
+    --tw-ring-color: #334155;
+  }
+  :where(html.dark) .btn-secondary:hover { background-color: #1e293b; }
+  :where(html.dark) .btn-secondary:active { background-color: #334155; }
+  :where(html.dark) .btn-icon:hover { background-color: #1e293b; }
+  :where(html.dark) .btn-icon:active { background-color: #334155; }
+  :where(html.dark) .btn-ghost { color: #cbd5e1; }
+  :where(html.dark) .btn-ghost:hover { background-color: #1e293b; color: #f1f5f9; }
+  :where(html.dark) .btn-ghost:active { background-color: #334155; }
+
+  :where(html.dark) .input {
+    background-color: #0f172a;
+    color: #f1f5f9;
+    --tw-ring-color: #334155;
+  }
+  :where(html.dark) .input::placeholder { color: #64748b; }
+  :where(html.dark) .input:disabled {
+    background-color: #0b1220;
+    color: #475569;
+  }
+  :where(html.dark) .label { color: #94a3b8; }
+
+  :where(html.dark) .nav-link { color: #cbd5e1; }
+  :where(html.dark) .nav-link:hover { background-color: #1e293b; color: #f1f5f9; }
+  :where(html.dark) .nav-link-active {
+    background-color: rgba(139, 92, 246, 0.18);
+    color: #c4b5fd;
+  }
+  :where(html.dark) .nav-link-active:hover {
+    background-color: rgba(139, 92, 246, 0.28);
+    color: #c4b5fd;
+  }
+  :where(html.dark) .nav-section { color: #64748b; }
+
+  :where(html.dark) .data-table thead {
+    background-color: rgba(15, 23, 42, 0.6);
+    color: #94a3b8;
+  }
+  :where(html.dark) .data-table tbody tr:hover { background-color: rgba(15, 23, 42, 0.6); }
+
+  :where(html.dark) .page-title { color: #f1f5f9; }
+  :where(html.dark) .page-description { color: #94a3b8; }
+
+  /* Form controls & native widgets --------------------------------- */
+  :where(html.dark) input,
+  :where(html.dark) textarea,
+  :where(html.dark) select {
+    color-scheme: dark;
+  }
+  :where(html.dark) ::placeholder { color: #64748b; }
+}

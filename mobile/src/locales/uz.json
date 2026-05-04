@@ -1,0 +1,123 @@
+{
+  "app": {
+    "name": "WORKTIME PRO"
+  },
+  "auth": {
+    "sign_in": "Tizimga kirish",
+    "username": "Username yoki email",
+    "password": "Parol",
+    "submit": "Kirish",
+    "logging_in": "Kirilmoqda...",
+    "logout": "Chiqish",
+    "session_expired": "Sessiya muddati tugadi"
+  },
+  "common": {
+    "loading": "Yuklanmoqda...",
+    "error": "Xatolik yuz berdi",
+    "retry": "Qayta urinish",
+    "no_data": "Ma'lumot yo'q",
+    "today": "Bugun",
+    "this_month": "Shu oy",
+    "currency_uzs": "so'm",
+    "save": "Saqlash",
+    "cancel": "Bekor qilish",
+    "minutes_short": "daq",
+    "hours_short": "soat",
+    "language": "Til"
+  },
+  "tabs": {
+    "home": "Bosh sahifa",
+    "salary": "Oylik",
+    "shifts": "Smenalar",
+    "kpi": "KPI",
+    "profile": "Profil"
+  },
+  "home": {
+    "shift_today": "Bugungi smena",
+    "no_shift_today": "Bugun smena belgilanmagan",
+    "check_in": "KIRISH (CHECK-IN)",
+    "check_out": "CHIQISH (CHECK-OUT)",
+    "checking_in": "Qayd etilmoqda...",
+    "worked_today": "Bugun ishlagan vaqt",
+    "earned_today": "Bugun topildi",
+    "earned_month": "Shu oyda topildi",
+    "you_are_working": "Hozir ish jarayonidasiz",
+    "not_working": "Hozir ishda emassiz",
+    "location_required": "Joy ma'lumoti kerak — ruxsat bering",
+    "location_denied": "Joylashuv ruxsati rad etildi"
+  },
+  "salary": {
+    "title": "Oylik",
+    "today_breakdown": "Bugungi taqsimot",
+    "base": "Asos",
+    "overtime": "Overtime",
+    "bonuses": "Bonuslar",
+    "kpi": "KPI",
+    "deductions": "Jarimalar",
+    "total": "Jami",
+    "current_period": "Joriy oy",
+    "pending": "To'lanmagan",
+    "paid": "To'langan",
+    "history": "Tarix",
+    "month_full": "{{month}} {{year}}"
+  },
+  "shifts": {
+    "title": "Smenalar",
+    "upcoming": "Kelgusi smenalar",
+    "no_upcoming": "Kelgusi smena yo'q"
+  },
+  "kpi": {
+    "title": "KPI",
+    "no_kpi": "Joriy oy uchun KPI tayinlanmagan",
+    "score": "Bajarish",
+    "reward": "Mukofot",
+    "penalty": "Jarima",
+    "actual": "Erishildi",
+    "target": "Maqsad",
+    "current": "Joriy oy",
+    "history": "Tarix",
+    "weight": "Vazn",
+    "status": "Holat",
+    "manager_rating": "Boshliq bahosi",
+    "manager_comment": "Boshliq izohi",
+    "your_response": "Sizning javobingiz",
+    "save_response": "Saqlash",
+    "response_saved": "Javob saqlandi",
+    "response_placeholder": "Bu KPI haqidagi fikringiz...",
+    "details": "Batafsil",
+    "inputs_snapshot": "Hisoblash kiritmalari",
+    "approved_at": "Tasdiqlangan vaqti",
+    "no_history": "Tarix yo'q",
+    "summary_total": "Jami mukofot",
+    "summary_avg": "O'rtacha ball",
+    "summary_count": "KPI'lar soni",
+    "category": {
+      "ATTENDANCE": "Davomat",
+      "SALES": "Sotuv",
+      "TASKS": "Vazifalar",
+      "QUALITY": "Sifat",
+      "MANAGER_REVIEW": "Boshliq bahosi",
+      "GOAL": "Maqsad",
+      "CUSTOM": "Maxsus"
+    },
+    "status_label": {
+      "DRAFT": "Qoralama",
+      "ACTIVE": "Faol",
+      "COMPUTED": "Hisoblangan",
+      "APPROVED": "Tasdiqlangan",
+      "PAID": "To'langan",
+      "REJECTED": "Rad etilgan",
+      "CANCELLED": "Bekor qilingan",
+      "COMPLETED": "Yakunlangan"
+    }
+  },
+  "profile": {
+    "title": "Profil",
+    "info": "Ma'lumotlar",
+    "code": "Xodim kodi",
+    "position": "Lavozim",
+    "phone": "Telefon",
+    "email": "Email",
+    "settings": "Sozlamalar"
+  }
+}

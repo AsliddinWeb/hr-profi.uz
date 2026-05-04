@@ -1,0 +1,156 @@
+x-api-base: &api-base
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+  env_file: .env
+  # Pin every backend container to Tashkent local time. Without this,
+  # ``datetime.now()`` (no tz arg) returns UTC inside the container, which
+  # mismatches the Postgres clock that's also Tashkent now — and we end
+  # up writing rows with one wall-clock and querying against another.
+  environment:
+    TZ: Asia/Tashkent
+  volumes:
+    - ./backend:/app
+    - media:/app/media
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_started
+    minio:
+      condition: service_started
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Force the OS clock + the SQL ``now()`` to Tashkent. The combo of
+      # TZ (container shell + libc) + PGTZ (server-side default) keeps
+      # every ``func.extract('hour', ...)`` query in the same calendar.
+      TZ: Asia/Tashkent
+      PGTZ: Asia/Tashkent
+    command: ["postgres", "-c", "timezone=Asia/Tashkent"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    environment:
+      TZ: Asia/Tashkent
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "6379:6379"
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    env_file: .env
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      TZ: Asia/Tashkent
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  api:
+    <<: *api-base
+    restart: unless-stopped
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  celery_worker:
+    <<: *api-base
+    restart: unless-stopped
+    command: ["celery", "-A", "app.tasks.celery_app", "worker", "--loglevel=info"]
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.tasks.celery_app inspect ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  celery_beat:
+    <<: *api-base
+    restart: unless-stopped
+    command: ["celery", "-A", "app.tasks.celery_app", "beat", "--loglevel=info"]
+
+  # Phase 2+: enable with `docker compose --profile web up -d`
+  admin_web:
+    profiles: ["web"]
+    build:
+      context: ./admin-web
+      dockerfile: Dockerfile
+      args:
+        # Relative paths so the nginx proxy in the same container handles them.
+        VITE_API_URL: /api/v1
+        VITE_WS_URL: /ws
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Tashkent
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+
+  # Employee-facing PWA. Listens on 5174 (next start). API requests are
+  # proxied via Next.js rewrites to the ``api`` service on the docker
+  # network, so we don't need a separate nginx layer.
+  client_web:
+    profiles: ["web"]
+    build:
+      context: ./client-web
+      dockerfile: Dockerfile
+      args:
+        # Baked into the standalone bundle's rewrites — see Dockerfile.
+        API_PROXY_TARGET: http://api:8000
+    restart: unless-stopped
+    environment:
+      API_PROXY_TARGET: http://api:8000
+      TZ: Asia/Tashkent
+    ports:
+      - "5174:5174"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
+  media:

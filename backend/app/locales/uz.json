@@ -1,0 +1,82 @@
+{
+  "app": {
+    "error": "Xatolik yuz berdi"
+  },
+  "common": {
+    "ok": "Muvaffaqiyatli",
+    "not_found": "Topilmadi",
+    "conflict": "Ziddiyat — ushbu ma'lumot allaqachon mavjud",
+    "validation_failed": "Ma'lumot noto'g'ri",
+    "http_error": "So'rovni bajarib bo'lmadi",
+    "forbidden": "Ruxsat berilmagan"
+  },
+  "auth": {
+    "invalid_credentials": "Login yoki parol noto'g'ri",
+    "invalid_token": "Token noto'g'ri yoki muddati o'tgan",
+    "invalid_token_type": "Token turi noto'g'ri",
+    "token_expired": "Token muddati tugagan",
+    "permission_denied": "Bu amalni bajarish uchun ruxsat yo'q",
+    "password_unchanged": "Yangi parol eskisi bilan bir xil bo'lmasligi kerak",
+    "logged_out": "Tizimdan chiqdingiz",
+    "password_changed": "Parol muvaffaqiyatli o'zgartirildi"
+  },
+  "tenant": {
+    "cross_tenant_forbidden": "Bu kompaniya ma'lumotiga kira olmaysiz"
+  },
+  "company": {
+    "slug_taken": "Bu slug allaqachon ishlatilgan",
+    "not_found": "Kompaniya topilmadi",
+    "suspended": "Kompaniya to'xtatildi"
+  },
+  "branch": {
+    "not_found": "Filial topilmadi"
+  },
+  "department": {
+    "not_found": "Bo'lim topilmadi"
+  },
+  "user": {
+    "not_found": "Foydalanuvchi topilmadi",
+    "duplicate": "Bu username yoki email allaqachon ishlatilgan",
+    "role_not_creatable_here": "Bu rolni shu yerdan yaratish mumkin emas",
+    "cannot_deactivate_self": "O'zingizni o'chira olmaysiz"
+  },
+  "employee": {
+    "not_found": "Xodim topilmadi",
+    "terminated": "Xodim ishdan bo'shatilgan",
+    "code_taken": "Bu xodim kodi allaqachon ishlatilgan",
+    "login_credentials_required": "Login uchun username va parol kiritilishi shart",
+    "import_missing_columns": "CSV faylida 'employee_code' va 'full_name' ustunlari bo'lishi shart"
+  },
+  "shift": {
+    "template_not_found": "Smena shabloni topilmadi"
+  },
+  "attendance": {
+    "already_checked_in": "Siz allaqachon kelganingiz qayd etilgan",
+    "no_active_check_in": "Avval CHECK-IN qilishingiz kerak",
+    "on_leave": "Bugun ta'tildasiz — qayd etish mumkin emas"
+  },
+  "salary": {
+    "period_not_found": "Oylik davri topilmadi"
+  },
+  "leave": {
+    "request_not_found": "Ta'til so'rovi topilmadi",
+    "type_not_found": "Ta'til turi topilmadi",
+    "already_decided": "Bu so'rov bo'yicha qaror qabul qilingan",
+    "invalid_decision": "Faqat APPROVED yoki REJECTED bo'lishi mumkin",
+    "overlap": "Bu xodimda ushbu sanalarda allaqachon ta'til ariza bor: {existing_start} → {existing_end}. Avval o'sha arizani bekor qiling yoki sanalarni o'zgartiring.",
+    "already_cancelled": "Ariza allaqachon bekor qilingan."
+  },
+  "kpi": {
+    "assignment_not_found": "KPI tayinlanishi topilmadi",
+    "template_not_found": "KPI shabloni topilmadi",
+    "bad_formula": "KPI formulasi xato"
+  },
+  "device": {
+    "not_found": "Qurilma topilmadi",
+    "bad_json": "Qurilma yuborgan JSON noto'g'ri",
+    "unauthorized": "Qurilma autentifikatsiyasi muvaffaqiyatsiz"
+  },
+  "notification": {
+    "not_found": "Bildirishnoma topilmadi"
+  }
+}

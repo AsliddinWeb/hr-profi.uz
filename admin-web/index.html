@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hr-Profi</title>
+    <script>
+      // Apply persisted dark theme before paint — without this, dark-mode
+      // users see a flash of light theme during the React bundle download.
+      (function () {
+        try {
+          var v = localStorage.getItem('hrp.admin.theme') || 'system';
+          var dark =
+            v === 'dark' ||
+            (v === 'system' &&
+              window.matchMedia &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (dark) document.documentElement.classList.add('dark');
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body class="font-sans antialiased">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

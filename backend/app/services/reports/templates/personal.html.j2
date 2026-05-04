@@ -1,0 +1,166 @@
+{# Personal monthly report — one summary card + daily breakdown table.
+   Styled by ``_base.css`` with a couple of extras inlined for the
+   summary tiles (kept here so we don't grow the shared CSS file with
+   stuff only this template uses). #}
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      {{ base_css | safe }}
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 3mm;
+        margin-bottom: 6mm;
+      }
+      .summary-tile {
+        border: 1px solid #e2e8f0;
+        border-radius: 2mm;
+        padding: 2.5mm 3mm;
+        background: #f8fafc;
+      }
+      .summary-tile .label {
+        font-size: 7.5pt;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+      }
+      .summary-tile .value {
+        font-size: 13pt;
+        font-weight: 700;
+        color: #1e293b;
+        margin-top: 1mm;
+        font-variant-numeric: tabular-nums;
+      }
+      .summary-tile.accent {
+        background: linear-gradient(135deg, #4f46e5, #6366f1);
+        color: white;
+        border-color: #4f46e5;
+      }
+      .summary-tile.accent .label,
+      .summary-tile.accent .value {
+        color: white;
+      }
+      h2.section-title {
+        font-size: 11pt;
+        margin: 6mm 0 3mm 0;
+        color: #1e293b;
+        border-left: 3mm solid #4f46e5;
+        padding-left: 3mm;
+      }
+    </style>
+    <title>{{ title }} — {{ ym }}</title>
+  </head>
+  <body>
+    <header class="report-header">
+      <div class="brand">
+        <div class="brand-logo">{{ company_initial }}</div>
+        <div class="brand-text">
+          <h1>{{ title }}</h1>
+          <div class="company">{{ company_name }}</div>
+        </div>
+      </div>
+      <div class="report-meta">
+        <div><b>{{ employee_label }}:</b> {{ employee_name }} ({{ employee_code }})</div>
+        <div><b>{{ ym_label }}:</b> {{ ym }}</div>
+        <div><b>{{ generated_at_label }}:</b> {{ generated_at }}</div>
+      </div>
+    </header>
+
+    <h2 class="section-title">{{ labels.section_summary }}</h2>
+    <div class="summary-grid">
+      <div class="summary-tile">
+        <div class="label">{{ labels.days_worked }}</div>
+        <div class="value">{{ summary.days_worked }}</div>
+      </div>
+      <div class="summary-tile">
+        <div class="label">{{ labels.minutes_worked }}</div>
+        <div class="value">{{ worked_hm }}</div>
+      </div>
+      <div class="summary-tile">
+        <div class="label">{{ labels.ot_minutes }}</div>
+        <div class="value">{{ "%.1f"|format(summary.ot_hours) }}h</div>
+      </div>
+      <div class="summary-tile">
+        <div class="label">{{ labels.late_minutes }}</div>
+        <div class="value">{{ summary.late_minutes }} min</div>
+      </div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-tile">
+        <div class="label">{{ labels.base }}</div>
+        <div class="value">{{ "{:,}".format(summary.base).replace(",", " ") }}</div>
+      </div>
+      <div class="summary-tile">
+        <div class="label">{{ labels.overtime }}</div>
+        <div class="value">{{ "{:,}".format(summary.overtime).replace(",", " ") }}</div>
+      </div>
+      <div class="summary-tile">
+        <div class="label">{{ labels.bonuses }}</div>
+        <div class="value">{{ "{:,}".format(summary.bonuses).replace(",", " ") }}</div>
+      </div>
+      <div class="summary-tile">
+        <div class="label">{{ labels.deductions }}</div>
+        <div class="value">−{{ "{:,}".format(summary.deductions).replace(",", " ") }}</div>
+      </div>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-tile accent">
+        <div class="label">{{ labels.total_earned }}</div>
+        <div class="value">{{ "{:,}".format(summary.total_earned).replace(",", " ") }}</div>
+      </div>
+      <div class="summary-tile">
+        <div class="label">{{ labels.paid }}</div>
+        <div class="value">{{ "{:,}".format(summary.paid).replace(",", " ") }}</div>
+      </div>
+      <div class="summary-tile">
+        <div class="label">{{ labels.pending }}</div>
+        <div class="value">{{ "{:,}".format(summary.pending).replace(",", " ") }}</div>
+      </div>
+      <div class="summary-tile">
+        <div class="label">{{ labels.kpi }}</div>
+        <div class="value">{{ "{:,}".format(summary.kpi).replace(",", " ") }}</div>
+      </div>
+    </div>
+
+    <h2 class="section-title">{{ labels.section_daily }}</h2>
+    <table class="data">
+      <thead>
+        <tr>
+          <th>{{ labels.col_date }}</th>
+          <th>{{ labels.col_in }}</th>
+          <th>{{ labels.col_out }}</th>
+          <th class="numeric">{{ labels.col_hours }}</th>
+          <th class="numeric">{{ labels.col_ot }}</th>
+          <th class="numeric">{{ labels.col_late }}</th>
+          <th class="numeric">{{ labels.col_base }}</th>
+          <th class="numeric">{{ labels.col_total }}</th>
+          <th>{{ labels.col_status }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>{{ r.date }}</td>
+          <td>{{ r.in }}</td>
+          <td>{{ r.out }}</td>
+          <td class="numeric">{{ r.hours }}</td>
+          <td class="numeric">{{ r.ot }}</td>
+          <td class="numeric">{{ r.late }}</td>
+          <td class="numeric">{{ r.base }}</td>
+          <td class="numeric">{{ r.total }}</td>
+          <td>
+            {% if r.status %}
+              <span class="status-pill {{ r.status }}">{{ r.status }}</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </body>
+</html>

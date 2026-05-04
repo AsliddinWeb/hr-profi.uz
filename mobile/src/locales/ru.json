@@ -1,0 +1,121 @@
+{
+  "app": { "name": "WORKTIME PRO" },
+  "auth": {
+    "sign_in": "Вход в систему",
+    "username": "Username или email",
+    "password": "Пароль",
+    "submit": "Войти",
+    "logging_in": "Вход...",
+    "logout": "Выйти",
+    "session_expired": "Сессия истекла"
+  },
+  "common": {
+    "loading": "Загрузка...",
+    "error": "Произошла ошибка",
+    "retry": "Повторить",
+    "no_data": "Нет данных",
+    "today": "Сегодня",
+    "this_month": "Этот месяц",
+    "currency_uzs": "сум",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "minutes_short": "мин",
+    "hours_short": "ч",
+    "language": "Язык"
+  },
+  "tabs": {
+    "home": "Главная",
+    "salary": "Зарплата",
+    "shifts": "Смены",
+    "kpi": "KPI",
+    "profile": "Профиль"
+  },
+  "home": {
+    "shift_today": "Сегодняшняя смена",
+    "no_shift_today": "На сегодня смена не назначена",
+    "check_in": "ПРИХОД (CHECK-IN)",
+    "check_out": "УХОД (CHECK-OUT)",
+    "checking_in": "Регистрация...",
+    "worked_today": "Отработано сегодня",
+    "earned_today": "Заработано сегодня",
+    "earned_month": "За этот месяц",
+    "you_are_working": "Вы сейчас на работе",
+    "not_working": "Вы вне работы",
+    "location_required": "Нужен доступ к геолокации",
+    "location_denied": "Доступ к геолокации отклонён"
+  },
+  "salary": {
+    "title": "Зарплата",
+    "today_breakdown": "Разбивка за сегодня",
+    "base": "Основа",
+    "overtime": "Сверхурочные",
+    "bonuses": "Бонусы",
+    "kpi": "KPI",
+    "deductions": "Удержания",
+    "total": "Итого",
+    "current_period": "Текущий месяц",
+    "pending": "К выплате",
+    "paid": "Выплачено",
+    "history": "История",
+    "month_full": "{{month}} {{year}}"
+  },
+  "shifts": {
+    "title": "Смены",
+    "upcoming": "Предстоящие смены",
+    "no_upcoming": "Нет предстоящих смен"
+  },
+  "kpi": {
+    "title": "KPI",
+    "no_kpi": "На текущий месяц KPI не назначены",
+    "score": "Выполнение",
+    "reward": "Награда",
+    "penalty": "Штраф",
+    "actual": "Достигнуто",
+    "target": "Цель",
+    "current": "Текущий месяц",
+    "history": "История",
+    "weight": "Вес",
+    "status": "Статус",
+    "manager_rating": "Оценка руководителя",
+    "manager_comment": "Комментарий руководителя",
+    "your_response": "Ваш ответ",
+    "save_response": "Сохранить",
+    "response_saved": "Ответ сохранён",
+    "response_placeholder": "Ваше мнение об этом KPI...",
+    "details": "Подробнее",
+    "inputs_snapshot": "Входные данные расчёта",
+    "approved_at": "Время утверждения",
+    "no_history": "История пуста",
+    "summary_total": "Всего наград",
+    "summary_avg": "Средний балл",
+    "summary_count": "Кол-во KPI",
+    "category": {
+      "ATTENDANCE": "Посещаемость",
+      "SALES": "Продажи",
+      "TASKS": "Задачи",
+      "QUALITY": "Качество",
+      "MANAGER_REVIEW": "Оценка руководителя",
+      "GOAL": "Цель",
+      "CUSTOM": "Произвольный"
+    },
+    "status_label": {
+      "DRAFT": "Черновик",
+      "ACTIVE": "Активный",
+      "COMPUTED": "Рассчитан",
+      "APPROVED": "Утверждён",
+      "PAID": "Выплачен",
+      "REJECTED": "Отклонён",
+      "CANCELLED": "Отменён",
+      "COMPLETED": "Завершён"
+    }
+  },
+  "profile": {
+    "title": "Профиль",
+    "info": "Информация",
+    "code": "Код сотрудника",
+    "position": "Должность",
+    "phone": "Телефон",
+    "email": "Email",
+    "settings": "Настройки"
+  }
+}

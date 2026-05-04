@@ -1,0 +1,82 @@
+{
+  "app": {
+    "error": "An error occurred"
+  },
+  "common": {
+    "ok": "Success",
+    "not_found": "Not found",
+    "conflict": "Conflict — record already exists",
+    "validation_failed": "Validation failed",
+    "http_error": "Request failed",
+    "forbidden": "Forbidden"
+  },
+  "auth": {
+    "invalid_credentials": "Invalid username or password",
+    "invalid_token": "Invalid or expired token",
+    "invalid_token_type": "Invalid token type",
+    "token_expired": "Token expired",
+    "permission_denied": "You do not have permission to perform this action",
+    "password_unchanged": "New password must differ from the current one",
+    "logged_out": "Logged out",
+    "password_changed": "Password changed"
+  },
+  "tenant": {
+    "cross_tenant_forbidden": "Access to this company's data is forbidden"
+  },
+  "company": {
+    "slug_taken": "This slug is already in use",
+    "not_found": "Company not found",
+    "suspended": "Company suspended"
+  },
+  "branch": {
+    "not_found": "Branch not found"
+  },
+  "department": {
+    "not_found": "Department not found"
+  },
+  "user": {
+    "not_found": "User not found",
+    "duplicate": "Username or email already in use",
+    "role_not_creatable_here": "This role cannot be created here",
+    "cannot_deactivate_self": "You cannot deactivate yourself"
+  },
+  "employee": {
+    "not_found": "Employee not found",
+    "terminated": "Employee terminated",
+    "code_taken": "Employee code already in use",
+    "login_credentials_required": "Login username and password are required",
+    "import_missing_columns": "CSV must include 'employee_code' and 'full_name' columns"
+  },
+  "shift": {
+    "template_not_found": "Shift template not found"
+  },
+  "attendance": {
+    "already_checked_in": "You are already checked in",
+    "no_active_check_in": "You must check in first",
+    "on_leave": "You are on approved leave today — check-in disabled"
+  },
+  "salary": {
+    "period_not_found": "Salary period not found"
+  },
+  "leave": {
+    "request_not_found": "Leave request not found",
+    "type_not_found": "Leave type not found",
+    "already_decided": "This request has already been decided",
+    "invalid_decision": "Only APPROVED or REJECTED is allowed",
+    "overlap": "This employee already has a leave request covering the selected dates: {existing_start} → {existing_end}. Cancel it or pick different dates.",
+    "already_cancelled": "This request has already been cancelled."
+  },
+  "kpi": {
+    "assignment_not_found": "KPI assignment not found",
+    "template_not_found": "KPI template not found",
+    "bad_formula": "Invalid KPI formula"
+  },
+  "device": {
+    "not_found": "Device not found",
+    "bad_json": "Device sent invalid JSON",
+    "unauthorized": "Device authentication failed"
+  },
+  "notification": {
+    "not_found": "Notification not found"
+  }
+}

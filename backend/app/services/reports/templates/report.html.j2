@@ -1,0 +1,77 @@
+{# Generic report template — every report type renders the same shell with
+   different headers/columns/totals supplied by the renderer. We don't
+   per-template-html the four reports because they all want the same
+   visual structure (brand bar + table + signatures); only the totals
+   row varies, which we feed via ``totals``. #}
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>{{ base_css | safe }}</style>
+    <title>{{ report_title }}</title>
+  </head>
+  <body>
+    <header class="report-header">
+      <div class="brand">
+        <div class="brand-logo">{{ company_initial }}</div>
+        <div class="brand-text">
+          <h1>{{ report_title }}</h1>
+          <div class="company">{{ company_name }}</div>
+        </div>
+      </div>
+      <div class="report-meta">
+        <div>{{ subtitle }}</div>
+        <div><b>{{ generated_at_label }}:</b> {{ generated_at }}</div>
+        {% if requested_by %}<div><b>{{ requested_by_label }}:</b> {{ requested_by }}</div>{% endif %}
+        {% if branch_name %}<div><b>{{ branch_label }}:</b> {{ branch_name }}</div>{% endif %}
+      </div>
+    </header>
+
+    <table class="data">
+      <thead>
+        <tr>
+          {% for h in headers %}<th>{{ h }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          {% for cell in row %}
+            {% if loop.index0 in numeric_columns %}
+              <td class="numeric">{{ cell }}</td>
+            {% elif cell in status_pill_values %}
+              <td><span class="status-pill {{ cell }}">{{ cell }}</span></td>
+            {% else %}
+              <td>{{ cell }}</td>
+            {% endif %}
+          {% endfor %}
+        </tr>
+        {% endfor %}
+        {% if totals %}
+        <tr class="totals-row">
+          {% for cell in totals %}
+            {% if loop.index0 in numeric_columns %}
+              <td class="numeric">{{ cell }}</td>
+            {% else %}
+              <td>{{ cell }}</td>
+            {% endif %}
+          {% endfor %}
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+
+    {% if include_signatures %}
+    <div class="signatures">
+      <div class="signature">
+        <div class="role">{{ sig_prepared_by_label }}</div>
+        <div>&nbsp;</div>
+      </div>
+      <div class="signature">
+        <div class="role">{{ sig_approved_by_label }}</div>
+        <div>&nbsp;</div>
+      </div>
+    </div>
+    {% endif %}
+  </body>
+</html>

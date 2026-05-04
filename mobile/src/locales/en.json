@@ -1,0 +1,121 @@
+{
+  "app": { "name": "WORKTIME PRO" },
+  "auth": {
+    "sign_in": "Sign in",
+    "username": "Username or email",
+    "password": "Password",
+    "submit": "Sign in",
+    "logging_in": "Signing in...",
+    "logout": "Sign out",
+    "session_expired": "Session expired"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "no_data": "No data",
+    "today": "Today",
+    "this_month": "This month",
+    "currency_uzs": "UZS",
+    "save": "Save",
+    "cancel": "Cancel",
+    "minutes_short": "min",
+    "hours_short": "h",
+    "language": "Language"
+  },
+  "tabs": {
+    "home": "Home",
+    "salary": "Salary",
+    "shifts": "Shifts",
+    "kpi": "KPI",
+    "profile": "Profile"
+  },
+  "home": {
+    "shift_today": "Today's shift",
+    "no_shift_today": "No shift scheduled today",
+    "check_in": "CHECK IN",
+    "check_out": "CHECK OUT",
+    "checking_in": "Recording...",
+    "worked_today": "Worked today",
+    "earned_today": "Earned today",
+    "earned_month": "Earned this month",
+    "you_are_working": "You are currently working",
+    "not_working": "You are off the clock",
+    "location_required": "Location access is required",
+    "location_denied": "Location access was denied"
+  },
+  "salary": {
+    "title": "Salary",
+    "today_breakdown": "Today's breakdown",
+    "base": "Base",
+    "overtime": "Overtime",
+    "bonuses": "Bonuses",
+    "kpi": "KPI",
+    "deductions": "Deductions",
+    "total": "Total",
+    "current_period": "Current month",
+    "pending": "Pending",
+    "paid": "Paid",
+    "history": "History",
+    "month_full": "{{month}} {{year}}"
+  },
+  "shifts": {
+    "title": "Shifts",
+    "upcoming": "Upcoming shifts",
+    "no_upcoming": "No upcoming shifts"
+  },
+  "kpi": {
+    "title": "KPI",
+    "no_kpi": "No KPIs assigned for this month",
+    "score": "Score",
+    "reward": "Reward",
+    "penalty": "Penalty",
+    "actual": "Actual",
+    "target": "Target",
+    "current": "Current month",
+    "history": "History",
+    "weight": "Weight",
+    "status": "Status",
+    "manager_rating": "Manager rating",
+    "manager_comment": "Manager comment",
+    "your_response": "Your response",
+    "save_response": "Save",
+    "response_saved": "Response saved",
+    "response_placeholder": "Your thoughts on this KPI...",
+    "details": "Details",
+    "inputs_snapshot": "Compute inputs",
+    "approved_at": "Approved at",
+    "no_history": "No history",
+    "summary_total": "Total reward",
+    "summary_avg": "Avg score",
+    "summary_count": "KPI count",
+    "category": {
+      "ATTENDANCE": "Attendance",
+      "SALES": "Sales",
+      "TASKS": "Tasks",
+      "QUALITY": "Quality",
+      "MANAGER_REVIEW": "Manager review",
+      "GOAL": "Goal",
+      "CUSTOM": "Custom"
+    },
+    "status_label": {
+      "DRAFT": "Draft",
+      "ACTIVE": "Active",
+      "COMPUTED": "Computed",
+      "APPROVED": "Approved",
+      "PAID": "Paid",
+      "REJECTED": "Rejected",
+      "CANCELLED": "Cancelled",
+      "COMPLETED": "Completed"
+    }
+  },
+  "profile": {
+    "title": "Profile",
+    "info": "Info",
+    "code": "Employee code",
+    "position": "Position",
+    "phone": "Phone",
+    "email": "Email",
+    "settings": "Settings"
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "app": {
+    "error": "Произошла ошибка"
+  },
+  "common": {
+    "ok": "Успешно",
+    "not_found": "Не найдено",
+    "conflict": "Конфликт — данные уже существуют",
+    "validation_failed": "Некорректные данные",
+    "http_error": "Не удалось выполнить запрос",
+    "forbidden": "Доступ запрещён"
+  },
+  "auth": {
+    "invalid_credentials": "Неверный логин или пароль",
+    "invalid_token": "Токен недействителен или истёк",
+    "invalid_token_type": "Неверный тип токена",
+    "token_expired": "Срок действия токена истёк",
+    "permission_denied": "Недостаточно прав для выполнения операции",
+    "password_unchanged": "Новый пароль не должен совпадать с предыдущим",
+    "logged_out": "Вы вышли из системы",
+    "password_changed": "Пароль успешно изменён"
+  },
+  "tenant": {
+    "cross_tenant_forbidden": "Доступ к данным этой компании запрещён"
+  },
+  "company": {
+    "slug_taken": "Этот slug уже используется",
+    "not_found": "Компания не найдена",
+    "suspended": "Компания приостановлена"
+  },
+  "branch": {
+    "not_found": "Филиал не найден"
+  },
+  "department": {
+    "not_found": "Отдел не найден"
+  },
+  "user": {
+    "not_found": "Пользователь не найден",
+    "duplicate": "Пользователь с таким username или email уже существует",
+    "role_not_creatable_here": "Эту роль нельзя создавать здесь",
+    "cannot_deactivate_self": "Нельзя деактивировать самого себя"
+  },
+  "employee": {
+    "not_found": "Сотрудник не найден",
+    "terminated": "Сотрудник уволен",
+    "code_taken": "Этот код сотрудника уже используется",
+    "login_credentials_required": "Для логина нужны username и пароль",
+    "import_missing_columns": "В CSV должны быть колонки 'employee_code' и 'full_name'"
+  },
+  "shift": {
+    "template_not_found": "Шаблон смены не найден"
+  },
+  "attendance": {
+    "already_checked_in": "Вы уже отметили приход",
+    "no_active_check_in": "Сначала нужно отметить приход (CHECK-IN)",
+    "on_leave": "Сегодня вы в отпуске — отметка невозможна"
+  },
+  "salary": {
+    "period_not_found": "Период оплаты не найден"
+  },
+  "leave": {
+    "request_not_found": "Заявка на отпуск не найдена",
+    "type_not_found": "Тип отпуска не найден",
+    "already_decided": "Решение по заявке уже принято",
+    "invalid_decision": "Допустимо только APPROVED или REJECTED",
+    "overlap": "У этого сотрудника уже есть заявка на отпуск, перекрывающая выбранные даты: {existing_start} → {existing_end}. Отмените её или измените даты.",
+    "already_cancelled": "Заявка уже отменена."
+  },
+  "kpi": {
+    "assignment_not_found": "Назначение KPI не найдено",
+    "template_not_found": "Шаблон KPI не найден",
+    "bad_formula": "Неверная формула KPI"
+  },
+  "device": {
+    "not_found": "Устройство не найдено",
+    "bad_json": "Некорректный JSON от устройства",
+    "unauthorized": "Аутентификация устройства не пройдена"
+  },
+  "notification": {
+    "not_found": "Уведомление не найдено"
+  }
+}

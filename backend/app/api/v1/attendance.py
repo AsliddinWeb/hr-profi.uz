@@ -1,0 +1,628 @@
+"""Attendance endpoints — mobile (employee), admin (read/manual), webhook (Phase 4)."""
+from __future__ import annotations
+
+from datetime import date as Date
+from datetime import datetime, time, timedelta, timezone
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, Query, status
+from sqlalchemy import desc, func, select
+
+from app.core.deps import (
+    CurrentUser,
+    DbDep,
+    TenantId,
+    apply_branch_scope,
+    client_ip,
+    require_permission,
+)
+from app.core.exceptions import NotFoundError, PermissionDeniedError
+from app.core.permissions import Role
+from app.models.attendance import (
+    AttendanceMethod,
+    AttendanceRecord,
+    AttendanceStatus,
+    CheckType,
+)
+from app.models.company import Company
+from app.models.employee import Employee
+from app.models.leave import LeaveRequest, LeaveStatus
+from app.models.shift import ScheduleStatus, ShiftSchedule
+from app.schemas.attendance import (
+    AttendanceRead,
+    AttendanceUpdate,
+    CheckInRequest,
+    CheckOutRequest,
+    DailyOverviewRow,
+    ManualAttendance,
+    MonthlyOverviewRow,
+    TodayStatus,
+)
+from app.schemas.common import MessageResponse, Page
+from app.services import attendance_service, audit_service
+
+router = APIRouter(prefix="/attendance", tags=["attendance"])
+
+
+def _company_id(user, tenant) -> UUID:
+    cid = tenant or user.company_id
+    if cid is None:
+        raise PermissionDeniedError()
+    return cid
+
+
+# ---------- Mobile (employee) ------------------------------------------------
+
+@router.post("/check-in", response_model=AttendanceRead)
+async def check_in(
+    data: CheckInRequest,
+    user: CurrentUser,
+    db: DbDep,
+    ip: str | None = Depends(client_ip),
+) -> AttendanceRead:
+    if user.role != Role.EMPLOYEE:
+        raise PermissionDeniedError()
+    rec = await attendance_service.check_in(db, user, data, ip_address=ip)
+    return AttendanceRead.model_validate(rec)
+
+
+@router.post("/check-out", response_model=AttendanceRead)
+async def check_out(
+    data: CheckOutRequest,
+    user: CurrentUser,
+    db: DbDep,
+    ip: str | None = Depends(client_ip),
+) -> AttendanceRead:
+    if user.role != Role.EMPLOYEE:
+        raise PermissionDeniedError()
+    rec = await attendance_service.check_out(db, user, data, ip_address=ip)
+    return AttendanceRead.model_validate(rec)
+
+
+@router.get("/today", response_model=TodayStatus)
+async def today(user: CurrentUser, db: DbDep) -> TodayStatus:
+    if user.role != Role.EMPLOYEE:
+        raise PermissionDeniedError()
+    return await attendance_service.today_status(db, user)
+
+
+@router.get("/history", response_model=list[AttendanceRead])
+async def my_history(
+    user: CurrentUser,
+    db: DbDep,
+    from_date: Date | None = Query(None, alias="from"),
+    to_date: Date | None = Query(None, alias="to"),
+    limit: int = Query(100, ge=1, le=500),
+) -> list[AttendanceRead]:
+    if user.role != Role.EMPLOYEE:
+        raise PermissionDeniedError()
+    emp = (
+        await db.execute(select(Employee).where(Employee.user_id == user.id))
+    ).scalar_one_or_none()
+    if not emp:
+        raise NotFoundError("employee.not_found")
+
+    stmt = (
+        select(AttendanceRecord)
+        .where(AttendanceRecord.employee_id == emp.id)
+        .order_by(desc(AttendanceRecord.timestamp))
+        .limit(limit)
+    )
+    if from_date:
+        stmt = stmt.where(AttendanceRecord.timestamp >= datetime.combine(from_date, datetime.min.time()))
+    if to_date:
+        stmt = stmt.where(AttendanceRecord.timestamp <= datetime.combine(to_date, datetime.max.time()))
+    rows = (await db.execute(stmt)).scalars().all()
+    return [AttendanceRead.model_validate(r) for r in rows]
+
+
+# ---------- Admin -----------------------------------------------------------
+
+@router.get(
+    "/records",
+    response_model=Page[AttendanceRead],
+    dependencies=[Depends(require_permission("attendance.read"))],
+)
+async def list_records(
+    user: CurrentUser,
+    db: DbDep,
+    tenant: TenantId,
+    employee_id: UUID | None = None,
+    branch_id: UUID | None = None,
+    from_date: Date | None = Query(None, alias="from"),
+    to_date: Date | None = Query(None, alias="to"),
+    page: int = Query(1, ge=1),
+    size: int = Query(50, ge=1, le=200),
+) -> Page[AttendanceRead]:
+    _company_id(user, tenant)
+    stmt = select(AttendanceRecord)
+    count_stmt = select(func.count(AttendanceRecord.id))
+    if employee_id:
+        stmt = stmt.where(AttendanceRecord.employee_id == employee_id)
+        count_stmt = count_stmt.where(AttendanceRecord.employee_id == employee_id)
+    if branch_id:
+        stmt = stmt.where(AttendanceRecord.branch_id == branch_id)
+        count_stmt = count_stmt.where(AttendanceRecord.branch_id == branch_id)
+    if from_date:
+        ts = datetime.combine(from_date, datetime.min.time())
+        stmt = stmt.where(AttendanceRecord.timestamp >= ts)
+        count_stmt = count_stmt.where(AttendanceRecord.timestamp >= ts)
+    if to_date:
+        ts = datetime.combine(to_date, datetime.max.time())
+        stmt = stmt.where(AttendanceRecord.timestamp <= ts)
+        count_stmt = count_stmt.where(AttendanceRecord.timestamp <= ts)
+
+    total = (await db.execute(count_stmt)).scalar_one()
+    rows = (
+        await db.execute(
+            stmt.order_by(desc(AttendanceRecord.timestamp))
+            .offset((page - 1) * size)
+            .limit(size)
+        )
+    ).scalars().all()
+    return Page[AttendanceRead](
+        items=[AttendanceRead.model_validate(r) for r in rows],
+        total=total,
+        page=page,
+        size=size,
+    )
+
+
+@router.post(
+    "/manual",
+    response_model=AttendanceRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_permission("attendance.create"))],
+)
+async def manual_record(
+    data: ManualAttendance,
+    user: CurrentUser,
+    db: DbDep,
+    tenant: TenantId,
+    ip: str | None = Depends(client_ip),
+) -> AttendanceRead:
+    """Admin enters an attendance row by hand (e.g. when device was offline).
+
+    No geofence/late check is applied — the admin is asserting the truth.
+    """
+    company_id = _company_id(user, tenant)
+    emp = (
+        await db.execute(select(Employee).where(Employee.id == data.employee_id))
+    ).scalar_one_or_none()
+    if not emp:
+        raise NotFoundError("employee.not_found")
+
+    rec = AttendanceRecord(
+        company_id=company_id,
+        employee_id=emp.id,
+        branch_id=data.branch_id or emp.branch_id,
+        check_type=data.check_type,
+        method=AttendanceMethod.MANUAL,
+        timestamp=data.timestamp,
+        notes=data.notes,
+        ip_address=ip,
+    )
+    db.add(rec)
+    await db.commit()
+    await db.refresh(rec)
+    await audit_service.record(
+        db,
+        action="attendance.manual",
+        actor_id=user.id,
+        actor_role=user.role,
+        company_id=company_id,
+        resource_type="attendance",
+        resource_id=rec.id,
+        commit=True,
+    )
+    return AttendanceRead.model_validate(rec)
+
+
+@router.patch(
+    "/records/{record_id}",
+    response_model=AttendanceRead,
+    dependencies=[Depends(require_permission("attendance.update"))],
+)
+async def update_record(
+    record_id: UUID,
+    data: AttendanceUpdate,
+    user: CurrentUser,
+    db: DbDep,
+    tenant: TenantId,
+) -> AttendanceRead:
+    """Admin patches a single record. Only ``status`` and ``notes`` are
+    editable — timestamp / check_type / employee_id stay immutable so payroll
+    runs against the original audit trail."""
+    _company_id(user, tenant)
+    rec = (
+        await db.execute(select(AttendanceRecord).where(AttendanceRecord.id == record_id))
+    ).scalar_one_or_none()
+    if not rec:
+        raise NotFoundError("attendance.record_not_found")
+    payload = data.model_dump(exclude_unset=True)
+    for f, v in payload.items():
+        setattr(rec, f, v)
+    await db.commit()
+    await db.refresh(rec)
+    await audit_service.record(
+        db,
+        action="attendance.update",
+        actor_id=user.id,
+        actor_role=user.role,
+        company_id=rec.company_id,
+        resource_type="attendance",
+        resource_id=rec.id,
+        payload=payload,
+        commit=True,
+    )
+    return AttendanceRead.model_validate(rec)
+
+
+@router.delete(
+    "/records/{record_id}",
+    response_model=MessageResponse,
+    dependencies=[Depends(require_permission("attendance.update"))],
+)
+async def reject_record(
+    record_id: UUID,
+    user: CurrentUser,
+    db: DbDep,
+    tenant: TenantId,
+) -> MessageResponse:
+    """Soft-reject a record (sets status=REJECTED) — payroll skips REJECTED
+    rows. Hard delete would lose the audit signal."""
+    _company_id(user, tenant)
+    rec = (
+        await db.execute(select(AttendanceRecord).where(AttendanceRecord.id == record_id))
+    ).scalar_one_or_none()
+    if not rec:
+        raise NotFoundError("attendance.record_not_found")
+    rec.status = AttendanceStatus.REJECTED
+    await db.commit()
+    await audit_service.record(
+        db,
+        action="attendance.reject",
+        actor_id=user.id,
+        actor_role=user.role,
+        company_id=rec.company_id,
+        resource_type="attendance",
+        resource_id=rec.id,
+        commit=True,
+    )
+    return MessageResponse(message="rejected")
+
+
+# ---------- Aggregate views ---------------------------------------------------
+
+
+def _day_bounds(day: Date) -> tuple[datetime, datetime]:
+    """UTC day window. Future improvement: use Company.timezone instead."""
+    start = datetime.combine(day, time.min, tzinfo=timezone.utc)
+    return start, start + timedelta(days=1)
+
+
+@router.get(
+    "/daily-overview",
+    response_model=list[DailyOverviewRow],
+    dependencies=[Depends(require_permission("attendance.read"))],
+)
+async def daily_overview(
+    user: CurrentUser,
+    db: DbDep,
+    tenant: TenantId,
+    target: Date | None = Query(None, alias="date"),
+    branch_id: UUID | None = None,
+) -> list[DailyOverviewRow]:
+    """One row per active employee with their attendance shape for ``date``.
+
+    Used by the admin ``Live`` tab. Computes worked-minutes by pairing
+    chronologically-ordered check-ins/check-outs; an unpaired tail check-in
+    means the employee is currently inside.
+    """
+    company_id = _company_id(user, tenant)
+    day = target or datetime.now(timezone.utc).date()
+    start, end = _day_bounds(day)
+
+    emp_stmt = apply_branch_scope(
+        select(Employee).where(Employee.is_active.is_(True)),
+        user,
+        Employee.branch_id,
+    )
+    if branch_id is not None:
+        emp_stmt = emp_stmt.where(Employee.branch_id == branch_id)
+    employees = (await db.execute(emp_stmt)).scalars().all()
+
+    # Pull all of today's records (non-rejected) in one query, group by employee.
+    recs = (
+        await db.execute(
+            select(AttendanceRecord)
+            .where(
+                AttendanceRecord.timestamp >= start,
+                AttendanceRecord.timestamp < end,
+                AttendanceRecord.status != AttendanceStatus.REJECTED,
+            )
+            .order_by(AttendanceRecord.timestamp.asc())
+        )
+    ).scalars().all()
+    by_emp: dict[UUID, list[AttendanceRecord]] = {}
+    for r in recs:
+        by_emp.setdefault(r.employee_id, []).append(r)
+
+    # Schedule rows for the day so we can compute REST_DAY etc.
+    sched_rows = (
+        await db.execute(
+            select(ShiftSchedule).where(ShiftSchedule.date == day)
+        )
+    ).scalars().all()
+    sched_by_emp: dict[UUID, ShiftSchedule] = {s.employee_id: s for s in sched_rows}
+
+    # Approved leaves overlapping the day. Used to surface ON_LEAVE on the
+    # Live overview regardless of whether the employee checked in — a paid
+    # vacation should never look like an ABSENCE on the dashboard.
+    leave_rows = (
+        await db.execute(
+            select(LeaveRequest.employee_id).where(
+                LeaveRequest.status == LeaveStatus.APPROVED.value,
+                LeaveRequest.start_date <= day,
+                LeaveRequest.end_date >= day,
+            )
+        )
+    ).scalars().all()
+    on_leave: set[UUID] = set(leave_rows)
+
+    # Company.working_days for ABSENT detection on weekdays without a schedule.
+    company = (
+        await db.execute(
+            select(Company)
+            .where(Company.id == company_id)
+            .execution_options(skip_tenant_filter=True)
+        )
+    ).scalar_one()
+    working_days = company.settings.get("working_days", [1, 2, 3, 4, 5])
+    if not isinstance(working_days, list):
+        working_days = [1, 2, 3, 4, 5]
+    is_workday = day.isoweekday() in working_days
+    now = datetime.now(timezone.utc)
+
+    out: list[DailyOverviewRow] = []
+    for emp in employees:
+        emp_recs = by_emp.get(emp.id, [])
+        sched = sched_by_emp.get(emp.id)
+
+        # Pair check-ins / outs to compute worked minutes. The last item being
+        # a CHECK_IN with no following CHECK_OUT means "currently in" — for
+        # the admin Live view we count the ongoing leg up to ``now`` so the
+        # number ticks toward "real" worked time.
+        worked_min = 0
+        first_in: datetime | None = None
+        last_out: datetime | None = None
+        late_min = 0
+        ot_min = 0
+        pending_in: AttendanceRecord | None = None
+        for r in emp_recs:
+            if r.check_type == CheckType.CHECK_IN:
+                if first_in is None:
+                    first_in = r.timestamp
+                pending_in = r
+                late_min += int(r.late_minutes or 0)
+            else:  # CHECK_OUT
+                last_out = r.timestamp
+                ot_min += int(r.overtime_minutes or 0)
+                if pending_in is not None:
+                    delta = (r.timestamp - pending_in.timestamp).total_seconds() / 60
+                    if delta > 0:
+                        worked_min += int(delta)
+                    pending_in = None
+        is_in = pending_in is not None
+        if is_in and pending_in is not None:
+            ongoing = (now - pending_in.timestamp).total_seconds() / 60
+            if ongoing > 0:
+                worked_min += int(ongoing)
+
+        # Status decision tree.
+        #
+        # Order matters: an approved leave overrides everything else (the
+        # employee is contractually allowed to be away today, so they must
+        # not show up as ABSENT/LATE/PRESENT). Rest day comes next, and only
+        # then do we look at actual attendance signals.
+        if emp.id in on_leave:
+            status_label = "ON_LEAVE"
+        elif sched and sched.status == ScheduleStatus.REST_DAY.value:
+            status_label = "REST_DAY"
+        elif is_in:
+            status_label = "IN_PROGRESS"
+        elif first_in is None:
+            # No check-in. ABSENT if the employee was expected today —
+            # either the company-wide working_days flag is set, OR the
+            # employee has a planned/swapped shift on this date. Cancelled
+            # schedules and non-workday weekends with no shift fall through
+            # to NOT_SCHEDULED ("smenasi yo'q").
+            has_planned_shift = (
+                sched is not None
+                and sched.status
+                in (
+                    ScheduleStatus.PLANNED.value,
+                    ScheduleStatus.SWAPPED.value,
+                )
+            )
+            if (is_workday or has_planned_shift) and day <= now.date():
+                status_label = "ABSENT"
+            else:
+                status_label = "NOT_SCHEDULED"
+        else:
+            status_label = "LATE" if late_min > 0 else "PRESENT"
+
+        out.append(
+            DailyOverviewRow(
+                employee_id=emp.id,
+                employee_code=emp.employee_code,
+                full_name=emp.full_name,
+                photo_url=emp.photo_url,
+                branch_id=emp.branch_id,
+                department_id=emp.department_id,
+                position=emp.position,
+                first_check_in=first_in,
+                last_check_out=last_out,
+                is_currently_in=is_in,
+                minutes_worked=worked_min,
+                late_minutes=late_min,
+                overtime_minutes=ot_min,
+                shift_status=status_label,
+            )
+        )
+    # Sort: in-progress first, then late, then present, then absent, then rest.
+    order = {
+        "IN_PROGRESS": 0,
+        "LATE": 1,
+        "PRESENT": 2,
+        "ABSENT": 3,
+        "ON_LEAVE": 4,
+        "REST_DAY": 5,
+        "NOT_SCHEDULED": 6,
+    }
+    out.sort(key=lambda r: (order.get(r.shift_status, 9), r.full_name))
+    return out
+
+
+@router.get(
+    "/monthly-overview",
+    response_model=list[MonthlyOverviewRow],
+    dependencies=[Depends(require_permission("attendance.read"))],
+)
+async def monthly_overview(
+    user: CurrentUser,
+    db: DbDep,
+    tenant: TenantId,
+    year: int = Query(..., ge=2000, le=2100),
+    month: int = Query(..., ge=1, le=12),
+    branch_id: UUID | None = None,
+) -> list[MonthlyOverviewRow]:
+    """Per-employee aggregate for the given calendar month — what payroll
+    review and the manager dashboard need."""
+    company_id = _company_id(user, tenant)
+    month_start = Date(year, month, 1)
+    if month == 12:
+        month_end_excl = Date(year + 1, 1, 1)
+    else:
+        month_end_excl = Date(year, month + 1, 1)
+    start_dt = datetime.combine(month_start, time.min, tzinfo=timezone.utc)
+    end_dt = datetime.combine(month_end_excl, time.min, tzinfo=timezone.utc)
+
+    emp_stmt = apply_branch_scope(
+        select(Employee).where(Employee.is_active.is_(True)),
+        user,
+        Employee.branch_id,
+    )
+    if branch_id is not None:
+        emp_stmt = emp_stmt.where(Employee.branch_id == branch_id)
+    employees = (await db.execute(emp_stmt)).scalars().all()
+
+    recs = (
+        await db.execute(
+            select(AttendanceRecord)
+            .where(
+                AttendanceRecord.timestamp >= start_dt,
+                AttendanceRecord.timestamp < end_dt,
+                AttendanceRecord.status != AttendanceStatus.REJECTED,
+            )
+            .order_by(AttendanceRecord.timestamp.asc())
+        )
+    ).scalars().all()
+
+    by_emp_day: dict[tuple[UUID, Date], list[AttendanceRecord]] = {}
+    for r in recs:
+        key = (r.employee_id, r.timestamp.astimezone(timezone.utc).date())
+        by_emp_day.setdefault(key, []).append(r)
+
+    sched_rows = (
+        await db.execute(
+            select(ShiftSchedule).where(
+                ShiftSchedule.date >= month_start,
+                ShiftSchedule.date < month_end_excl,
+            )
+        )
+    ).scalars().all()
+    rest_per_emp: dict[UUID, int] = {}
+    for s in sched_rows:
+        if s.status == ScheduleStatus.REST_DAY.value or s.status == ScheduleStatus.REST_DAY:
+            rest_per_emp[s.employee_id] = rest_per_emp.get(s.employee_id, 0) + 1
+
+    company = (
+        await db.execute(
+            select(Company)
+            .where(Company.id == company_id)
+            .execution_options(skip_tenant_filter=True)
+        )
+    ).scalar_one()
+    working_days_setting = company.settings.get("working_days", [1, 2, 3, 4, 5])
+    if not isinstance(working_days_setting, list):
+        working_days_setting = [1, 2, 3, 4, 5]
+    today = datetime.now(timezone.utc).date()
+
+    # Workdays in the month (only past or today — we don't pre-flag future
+    # absences).
+    workday_dates: list[Date] = []
+    cur = month_start
+    while cur < month_end_excl and cur <= today:
+        if cur.isoweekday() in working_days_setting:
+            workday_dates.append(cur)
+        cur += timedelta(days=1)
+
+    out: list[MonthlyOverviewRow] = []
+    for emp in employees:
+        days_with_work: set[Date] = set()
+        total_min = 0
+        late_min = 0
+        ot_min = 0
+        for d in workday_dates:
+            recs_d = by_emp_day.get((emp.id, d), [])
+            if not recs_d:
+                continue
+            pending_in: AttendanceRecord | None = None
+            had_in = False
+            for r in recs_d:
+                if r.check_type == CheckType.CHECK_IN:
+                    pending_in = r
+                    had_in = True
+                    late_min += int(r.late_minutes or 0)
+                else:
+                    ot_min += int(r.overtime_minutes or 0)
+                    if pending_in is not None:
+                        delta = (r.timestamp - pending_in.timestamp).total_seconds() / 60
+                        if delta > 0:
+                            total_min += int(delta)
+                        pending_in = None
+            if had_in:
+                days_with_work.add(d)
+
+        rest_planned = rest_per_emp.get(emp.id, 0)
+        # Absences = workdays so far without a check-in AND without a planned rest.
+        absences = 0
+        for d in workday_dates:
+            if (emp.id, d) in by_emp_day:
+                continue
+            sched = next(
+                (s for s in sched_rows if s.employee_id == emp.id and s.date == d),
+                None,
+            )
+            if sched and sched.status in (ScheduleStatus.REST_DAY.value, ScheduleStatus.REST_DAY):
+                continue
+            absences += 1
+
+        out.append(
+            MonthlyOverviewRow(
+                employee_id=emp.id,
+                employee_code=emp.employee_code,
+                full_name=emp.full_name,
+                photo_url=emp.photo_url,
+                branch_id=emp.branch_id,
+                days_worked=len(days_with_work),
+                total_minutes=total_min,
+                late_minutes=late_min,
+                overtime_minutes=ot_min,
+                rest_days_planned=rest_planned,
+                absence_days=absences,
+            )
+        )
+    out.sort(key=lambda r: r.full_name)
+    return out

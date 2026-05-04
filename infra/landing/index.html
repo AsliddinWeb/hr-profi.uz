@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#7c3aed" />
+    <title>Hr-Profi — Xodim va davomat boshqaruv tizimi</title>
+    <meta
+      name="description"
+      content="Hr-Profi — kompaniyangiz uchun multi-tenant HR va davomat platforma. Filiallar, smenalar, KPI, ish haqi va Face ID."
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <style>
+      :root {
+        --bg: #0b1220;
+        --card: #111827;
+        --border: #1f2937;
+        --ink: #e2e8f0;
+        --muted: #94a3b8;
+        --brand: #8b5cf6;
+        --brand-2: #6366f1;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        background:
+          radial-gradient(ellipse 60% 80% at 80% 0%, rgba(139, 92, 246, 0.18) 0%, transparent 60%),
+          radial-gradient(ellipse 50% 60% at 0% 100%, rgba(99, 102, 241, 0.14) 0%, transparent 60%),
+          var(--bg);
+        color: var(--ink);
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+      }
+      a { color: inherit; text-decoration: none; }
+      .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 24px 48px; }
+
+      header {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 24px; padding: 12px 0 36px;
+      }
+      .logo {
+        display: inline-flex; align-items: center; gap: 10px;
+        font-weight: 700; font-size: 18px;
+      }
+      .logo-mark {
+        width: 32px; height: 32px; border-radius: 8px;
+        background: linear-gradient(135deg, var(--brand), var(--brand-2));
+        display: inline-flex; align-items: center; justify-content: center;
+        color: white; font-weight: 700; font-size: 14px;
+        box-shadow: 0 6px 20px rgba(139, 92, 246, 0.35);
+      }
+      nav a {
+        color: var(--muted); font-size: 14px; margin-left: 18px;
+      }
+      nav a:hover { color: var(--ink); }
+      .cta {
+        background: linear-gradient(135deg, var(--brand), var(--brand-2));
+        color: white !important;
+        padding: 8px 14px; border-radius: 9px; font-weight: 600;
+        box-shadow: 0 6px 20px rgba(139, 92, 246, 0.3);
+      }
+      .cta:hover { filter: brightness(1.07); }
+
+      .hero {
+        padding: 36px 0 56px; text-align: left;
+      }
+      .hero h1 {
+        font-size: clamp(36px, 6vw, 64px);
+        line-height: 1.05; letter-spacing: -0.02em;
+        margin: 0 0 16px;
+      }
+      .hero h1 span {
+        background: linear-gradient(135deg, #c4b5fd, #a5b4fc);
+        -webkit-background-clip: text; background-clip: text;
+        color: transparent;
+      }
+      .hero p {
+        color: var(--muted); font-size: 18px; max-width: 640px;
+      }
+      .actions {
+        display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px;
+      }
+      .btn {
+        padding: 12px 20px; border-radius: 12px; font-weight: 600;
+        font-size: 15px; transition: transform 0.1s, filter 0.15s;
+        display: inline-flex; align-items: center; gap: 8px;
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, var(--brand), var(--brand-2));
+        color: white !important;
+        box-shadow: 0 10px 30px rgba(139, 92, 246, 0.32);
+      }
+      .btn-primary:hover { transform: translateY(-1px); filter: brightness(1.07); }
+      .btn-secondary {
+        background: var(--card); color: var(--ink);
+        border: 1px solid var(--border);
+      }
+      .btn-secondary:hover { border-color: rgba(139, 92, 246, 0.5); }
+
+      .grid {
+        display: grid; gap: 16px; margin-top: 56px;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      }
+      .card {
+        background: linear-gradient(180deg, rgba(17, 24, 39, 0.85), rgba(17, 24, 39, 0.5));
+        border: 1px solid var(--border);
+        border-radius: 16px; padding: 22px;
+      }
+      .card h3 {
+        font-size: 16px; margin: 12px 0 6px;
+      }
+      .card p {
+        color: var(--muted); font-size: 14px; margin: 0;
+      }
+      .card .icon {
+        width: 36px; height: 36px; border-radius: 10px;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: rgba(139, 92, 246, 0.18);
+        color: #c4b5fd;
+      }
+
+      footer {
+        margin-top: 80px; padding-top: 24px;
+        border-top: 1px solid var(--border);
+        color: var(--muted); font-size: 13px;
+        display: flex; justify-content: space-between; align-items: center;
+        flex-wrap: wrap; gap: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <a class="logo" href="/">
+          <span class="logo-mark">HP</span>
+          Hr-Profi
+        </a>
+        <nav>
+          <a href="https://admin.hr-profi.uz">Admin panel</a>
+          <a href="https://my.hr-profi.uz">Xodim kabineti</a>
+          <a class="cta" href="https://my.hr-profi.uz">Kirish</a>
+        </nav>
+      </header>
+
+      <section class="hero">
+        <h1>Xodim va davomatni <span>aqlli boshqarish</span></h1>
+        <p>
+          Hr-Profi — multi-tenant HR platforma. Filiallar, smenalar, KPI,
+          ish haqi, ta'tillar va Face ID davomat — barchasi bitta tizimda,
+          uz/ru/en tilida.
+        </p>
+        <div class="actions">
+          <a class="btn btn-primary" href="https://my.hr-profi.uz">
+            Xodim sifatida kirish
+          </a>
+          <a class="btn btn-secondary" href="https://admin.hr-profi.uz">
+            HR/Admin panel
+          </a>
+        </div>
+      </section>
+
+      <section class="grid">
+        <div class="card">
+          <span class="icon">📍</span>
+          <h3>Geofence davomat</h3>
+          <p>GPS va Face ID orqali ish joyiga kelgan-ketganni avtomatik qayd qilish.</p>
+        </div>
+        <div class="card">
+          <span class="icon">📊</span>
+          <h3>KPI va bonus</h3>
+          <p>Avtomatik hisoblanadigan KPI'lar, oylik leaderboard, bonus va jarima.</p>
+        </div>
+        <div class="card">
+          <span class="icon">💸</span>
+          <h3>Ish haqi</h3>
+          <p>Smena, kechikishlar, ortiqcha vaqt va ta'tillarni hisobga oluvchi salary engine.</p>
+        </div>
+        <div class="card">
+          <span class="icon">🏢</span>
+          <h3>Filial scope</h3>
+          <p>Branch managerlar faqat o'z filial xodimlarini ko'radi va boshqaradi.</p>
+        </div>
+      </section>
+
+      <footer>
+        <span>© <span id="year"></span> Hr-Profi. Barcha huquqlar himoyalangan.</span>
+        <span>
+          <a href="https://admin.hr-profi.uz">Admin</a> ·
+          <a href="https://my.hr-profi.uz">Xodim</a>
+        </span>
+      </footer>
+    </div>
+    <script>
+      document.getElementById("year").textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>
