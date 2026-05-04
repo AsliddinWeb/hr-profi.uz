@@ -290,7 +290,7 @@ export function ReportsHubPage() {
       )}
 
       {/* Recent jobs. */}
-      <Card>
+      <Card className="p-5 sm:p-6">
         <div className="flex items-center justify-between gap-2">
           <div>
             <CardTitle>{t("reports.recent")}</CardTitle>
@@ -526,7 +526,7 @@ function CreateForm({
   };
 
   return (
-    <Card>
+    <Card className="p-5 sm:p-6">
       <div className="flex items-start gap-3">
         <span
           className={cn(
