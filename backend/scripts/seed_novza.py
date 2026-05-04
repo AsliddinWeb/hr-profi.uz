@@ -1,26 +1,25 @@
-"""Seed Novza departments + employees + 9-18 shift from an Excel file.
+"""Seed Novza-Eshiklari departments + employees + 9-18 shift.
 
-Reads the "Апрель" sheet of the Novza табел Excel, groups employees by
-department header rows (Столярка / Малярка / ОФИС / Упакофка / Охрана),
-creates a 9:00-18:00 shift template, then provisions:
+Employee list is EMBEDDED below — no Excel file needed at runtime. Source
+of truth is the "Апрель" sheet of the клиентнинг 2026 табел; if that
+sheet changes, regenerate the EMPLOYEES list below.
 
-  - departments (one per Excel section)
-  - users with login = ``novza_<first_name>``  (numeric suffix on collision)
-  - employees linked to user + dept + branch + shift template
-  - hire_date forced to a single calendar day (default 2026-05-04)
+Run inside the api container:
 
-The script is idempotent on (company_id, full_name, department_id) — a
-re-run won't duplicate rows. Credentials of newly created users are
-printed to stdout AND written to a CSV next to the Excel for safe-keeping.
-
-USAGE (inside the api container):
-    python -m scripts.seed_novza /tmp/novza.xlsx --company novza
+    python -m scripts.seed_novza                      # real seed
+    python -m scripts.seed_novza --dry-run            # preview only
+    python -m scripts.seed_novza --company novza-eshiklari --hire-date 2026-05-04
 
 Optional flags:
-    --branch "Asosiy filial"
-    --hire-date 2026-05-04
-    --prefix novza_
-    --dry-run                # parse and print what WOULD be created
+    --company SLUG          (default: novza-eshiklari)
+    --branch  NAME          (default: "Asosiy filial")
+    --hire-date YYYY-MM-DD  (default: 2026-05-04)
+    --prefix  STRING        (default: "novza_")
+    --dry-run               do not write to DB
+
+Idempotent on (company_id, full_name, department_id) — re-running won't
+duplicate rows. New credentials are printed and saved to
+``/tmp/novza_credentials.csv`` inside the container.
 """
 from __future__ import annotations
 
@@ -32,7 +31,6 @@ import sys
 from datetime import date, time
 from pathlib import Path
 
-from openpyxl import load_workbook
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -47,11 +45,135 @@ from app.models.employee import Employee, SalaryType, WorkType
 from app.models.shift import ShiftTemplate, ShiftType
 from app.models.user import User, UserStatus
 
-DEPARTMENTS = {"Столярка", "Малярка", "ОФИС", "Упакофка", "Охрана"}
-HEADER_TOKENS = {"ф.и.о", "ф.и.о.", "должность", "fio"}
+# ====================================================================
+# EMBEDDED EMPLOYEE LIST
+#
+# Format: (department, full_name, position_or_None)
+# Source: Novza табел 2026йил Апрель sheet, parsed once.
+# Sections: Столярка / Малярка / ОФИС / Упакофка / Охрана.
+# ====================================================================
+EMPLOYEES: list[tuple[str, str, str | None]] = [
+    ("Столярка", "Усмонов Рустам", "Началник"),
+    ("Столярка", "Худойикулов Миржахон", "Бригадир"),
+    ("Столярка", "Корабоев Санжарбек", "МТФ"),
+    ("Столярка", "Авалов Шохрух", "Ровер аператор"),
+    ("Столярка", "Досматов Мадамин", "Шпон"),
+    ("Столярка", "Рахмонов Сардор", "Бригадир"),
+    ("Столярка", "Зокиржонов Абдулазиз", "йордамчи"),
+    ("Столярка", "Тургунов Фахриддин", "Абгонка"),
+    ("Столярка", "Нийазходжаев Илхамходжа", "Абгонка"),
+    ("Столярка", "Миразимов Фаррух", "Пресс"),
+    ("Столярка", "Бозорова Рискижон", "До шкурка"),
+    ("Столярка", "Махсудова Дилдора", "До заделка"),
+    ("Столярка", "Хусанов Санжар", "Замокчи"),
+    ("Столярка", "Турсунов Илхом", "Четверг"),
+    ("Столярка", "Одилжонов Холмурод", "До мантаж"),
+    ("Столярка", "Мирзамамудов Ғулом", "За делка/Отк"),
+    ("Столярка", "Юсупов Абдуавахоб", "Погонаж"),
+    ("Столярка", "Тоштургунов Жамшид", "Каробка"),
+    ("Столярка", "Абдумаликов Сухроб", "карнез"),
+    ("Столярка", "Рахимов Мирабзал", "Шкурка апарат"),
+    ("Столярка", "Косимжонов Шовкат", "Каробка"),
+    ("Столярка", "Турдиалийев Сардор", "Каробка"),
+    ("Столярка", "Толқунов Даврон", "Ровер аператор"),
+    ("Столярка", "Хасанов Елбек", "йордамчи"),
+    ("Столярка", "Полвонов Азизбек", "Крой йордамчиси"),
+    ("Столярка", "Султонов Ортиқбой", "Каробка"),
+    ("Столярка", "Турдинов Фарход", "Замок"),
+    ("Столярка", "Ботиров Фарход", None),
+    ("Столярка", "Егамбердийев Давлат", "Карказ"),
+    ("Столярка", "Ғапиров Сардор", "до мантаж"),
+    ("Столярка", "Абдукосимов Гайрат", None),
+    ("Столярка", "Каримов Шахзод", None),
+    ("Столярка", "Кахрамонов Акмал", None),
+    ("Малярка", "Абдуазимов Аброр", "Началник"),
+    ("Малярка", "Жораев Дилмурод", "Бригадир"),
+    ("Малярка", "Махмудов Тохир", "Бригадир"),
+    ("Малярка", "Юлдошев Улугбек", "Бригадир"),
+    ("Малярка", "Юлдошев Юнус", "Бригадир"),
+    ("Малярка", "Кубеков Бекмурод", "краска"),
+    ("Малярка", "Умаралийев Зиёвиддин", "краска"),
+    ("Малярка", "Юнусхонов Бобур", "Краска"),
+    ("Малярка", "Мадаминов Акром", "краска йордамчи"),
+    ("Малярка", "Мирзайев Даврон", "краска йордамчи"),
+    ("Малярка", "Шамсийев Хусниддин", "краска йордамчи"),
+    ("Малярка", "Суннаттиллайев Азизбек", "краска йордамчи"),
+    ("Малярка", "Акбаралийев Худойиберди", "Каробка"),
+    ("Малярка", "Курбонкулов Отабек", "Каробка"),
+    ("Малярка", "Гойназорова Хуршида", "Погоанаж шкурка"),
+    ("Малярка", "Мажитова Нилуфар", "Погонаж шкурка"),
+    ("Малярка", "Махкамбойева Мухлиса", "Погонаж шкурка"),
+    ("Малярка", "Гуломова Махлиё", "Паганаж шкурка"),
+    ("Малярка", "Тошканбойев Авазбек", "погонаж машинкачи"),
+    ("Малярка", "Нишанбайева Дилдора", "шпаклофка паганаж"),
+    ("Малярка", "Рахимов Бегзод", "Погонаж фора"),
+    ("Малярка", "Тохиров Шохжахон", "Погонаж йордамчиси"),
+    ("Малярка", "Абдукаримова Малика", "Эшик шкурка"),
+    ("Малярка", "Рахимова Шахло", "Эшик шкурка"),
+    ("Малярка", "Якубжонова Назокат", "Эшик шкурка"),
+    ("Малярка", "Камолова Шахноза", "Эшик шкурка"),
+    ("Малярка", "Кучкарова Шахноза", "Эшик шкурка"),
+    ("Малярка", "Айнакулова Дилдора", "Эшик шкурка"),
+    ("Малярка", "Рахимова Ибодат", "Эшик шкурка"),
+    ("Малярка", "Рахимов Дилшод", "Шпаклофка ешик"),
+    ("Малярка", "Султонов Умит", "Фора астар"),
+    ("Малярка", "Маруфжонов Ойбек", "йордамчи"),
+    ("Малярка", "Ергашев Нуриддин", "йордамчи"),
+    ("Малярка", "Ражабойев Акмал", "Шпаклофка йордамчиси"),
+    ("Малярка", "Атаджонова Рано", "шкуркачи"),
+    ("Малярка", "Абдурашидова Фарида", "шкуркачи"),
+    ("Малярка", "Қодирбердийева Сабрина", "шкуркачи"),
+    ("Малярка", "Қодирбердийева Сафия", "шкуркачи"),
+    ("Малярка", "Худойибердийев Сайдахмат", "йордамчи"),
+    ("Малярка", "Саидахматов Худойберган", "йордамчи"),
+    ("Малярка", "Бутунбайев Мухриддин", "йордамчи"),
+    ("Малярка", "Махкамов Даврон", "йордамчи"),
+    ("Малярка", "Турдикулов Бахром", "йордамчи"),
+    ("Малярка", "Эгматов Ойбек", "йордамчи"),
+    ("Малярка", "Норкулова Азиза", "шкуркачи"),
+    ("Малярка", "Йолдошева Феруза", "йордамчи"),
+    ("Малярка", "Жумайева Махлиё", "шкуркачи"),
+    ("Малярка", "Хамидава Юлдуз", "шкуркачи"),
+    ("Малярка", "Хасанова Мухаё", "шкуркачи"),
+    ("Малярка", "Холматова Садоқат", "шкуркачи"),
+    ("Малярка", "Ергашев Ойаттуллох", "мошинка"),
+    ("Малярка", "Абдуллайев Азиз", "шкурка"),
+    ("Малярка", "Собиржонова Дилдора", "шкурка"),
+    ("Малярка", "Усмонова Барно", "шкурка"),
+    ("ОФИС", "Ахмедов Донёр", "Зам директор"),
+    ("ОФИС", "Жовлонов Аъзам", "Молия"),
+    ("ОФИС", "Ергашев Отабек", "Бугалтер"),
+    ("ОФИС", "Норматов Шухрат", "Проект менеджер"),
+    ("ОФИС", "Алимов Марат", "Проект менеджер"),
+    ("ОФИС", "Кучкарова Шахноза", "Секретар"),
+    ("ОФИС", "Сайфутдинова Зарина", "Секретар"),
+    ("ОФИС", "Комилов Жасур", "ошпаз"),
+    ("ОФИС", "Мадаминова Севара", "ошпаз йордамчиси"),
+    ("ОФИС", "Комилова Лазокат", "ошпаз йордамчиси"),
+    ("ОФИС", "Шарапова Гулноза", "Техникчи"),
+    ("ОФИС", "Мадаминов Жамшид", "ОТК"),
+    ("ОФИС", "Суннаттилайев Отабек", "ОТК"),
+    ("ОФИС", "Анорбойев Ахрор", "Зав,Склад"),
+    ("ОФИС", "Рихсибойев Умиджон", "Склад"),
+    ("ОФИС", "Хамидов Ахрор", "сваршик"),
+    ("ОФИС", "Хасанбойев Мирзарахбар", "Склад"),
+    ("ОФИС", "Маруфов Жалолиддин", "Склад"),
+    ("Упакофка", "Ғанив Улуғбек", "Началник цеха"),
+    ("Упакофка", "Зухриддинов Хусанжон", "Упаковка"),
+    ("Упакофка", "Назиров Миразиз", "Упаковка"),
+    ("Упакофка", "Турмахонов Ерлон", "Упакофка"),
+    ("Упакофка", "Ерматов Бахром", "Шафйор"),
+    ("Упакофка", "Исламбеков Умит", "Шафйор"),
+    ("Упакофка", "Мирзаабдуллайев Хусниддин", "йордамчи"),
+    ("Упакофка", "Нурмухаммедов Бобур", "йордамчи"),
+    ("Охрана", "Бекмирзайв Фуркат", "Началник қоровил"),
+    ("Охрана", "Кучкаров Ахмат", "Коровил"),
+    ("Охрана", "Ахмедов Нурмат", "Коровил"),
+    ("Охрана", "Қадиров Бахтиёр", "Коровул"),
+]
 
-# Cyrillic + Uzbek-specific → Latin. Lossy on purpose so a name with
-# diacritics still produces a valid Latin login slug.
+# Cyrillic + Uzbek-Cyrillic specials → Latin. Lossy on purpose so a name
+# with diacritics still produces a valid Latin login slug.
 CYR_TO_LATIN: dict[str, str] = {
     "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e",
     "ё": "yo", "ж": "zh", "з": "z", "и": "i", "й": "y", "к": "k",
@@ -78,45 +200,6 @@ def first_name(full: str) -> str:
     if len(parts) >= 2:
         return translit(parts[1])
     return translit(parts[0]) if parts else ""
-
-
-def is_index(s: str) -> bool:
-    return bool(re.match(r"^\d+$", s.strip()))
-
-
-def parse_excel(path: Path) -> list[tuple[str, str, str | None]]:
-    """Yield (department, full_name, position) for every employee row.
-
-    Row shape: column A may be numeric index OR — for section headers —
-    the dept name. Column B is the F.I.O. Column C is the position
-    (Должность). A handful of legacy rows have two names spread over
-    A + B because of merged cells; both are emitted.
-    """
-    wb = load_workbook(path, data_only=True)
-    ws = wb["Апрель"]
-    current_dept: str | None = None
-    out: list[tuple[str, str, str | None]] = []
-    for row in ws.iter_rows(min_row=2, values_only=True):
-        a = (str(row[0]).strip() if len(row) > 0 and row[0] is not None else "")
-        b = (str(row[1]).strip() if len(row) > 1 and row[1] is not None else "")
-        c = (str(row[2]).strip() if len(row) > 2 and row[2] is not None else "")
-
-        if a in DEPARTMENTS or b in DEPARTMENTS:
-            current_dept = a if a in DEPARTMENTS else b
-            continue
-        if not current_dept or not (a or b):
-            continue
-        if a.lower() in HEADER_TOKENS or b.lower() in HEADER_TOKENS:
-            continue
-
-        names: list[str] = []
-        if b and not is_index(b):
-            names.append(b)
-        if a and not is_index(a) and a != b and a not in DEPARTMENTS:
-            names.append(a)
-        for nm in names:
-            out.append((current_dept, nm, c or None))
-    return out
 
 
 async def get_or_create_dept(
@@ -176,34 +259,31 @@ async def get_or_create_shift(
 
 async def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Seed Novza employees from Excel.",
+        description="Seed Novza-Eshiklari employees from the embedded list.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("excel", type=Path, help="Path to the Novza табел .xlsx")
-    parser.add_argument("--company", default="novza", help="Company slug (default: novza)")
+    parser.add_argument("--company", default="novza-eshiklari", help="Company slug")
     parser.add_argument("--branch", default="Asosiy filial", help="Branch name")
     parser.add_argument("--hire-date", default="2026-05-04", help="YYYY-MM-DD")
     parser.add_argument("--prefix", default="novza_", help="Login/password prefix")
     parser.add_argument("--dry-run", action="store_true", help="Don't write to DB")
     args = parser.parse_args(argv)
 
-    if not args.excel.exists():
-        print(f"❌ Excel not found: {args.excel}", file=sys.stderr)
-        return 1
-
     hire_date = date.fromisoformat(args.hire_date)
-    rows = parse_excel(args.excel)
+    rows = EMPLOYEES
     dept_set = {r[0] for r in rows}
-    print(f"📄 Parsed {len(rows)} employees across {len(dept_set)} departments")
-    for d in DEPARTMENTS:
+    print(f"📋 {len(rows)} employees across {len(dept_set)} departments (embedded)")
+    for d in ["Столярка", "Малярка", "ОФИС", "Упакофка", "Охрана"]:
         n = sum(1 for r in rows if r[0] == d)
         if n:
             print(f"     • {d}: {n}")
 
     if args.dry_run:
-        print("\n--- DRY RUN — first 10 rows ---")
+        print("\n--- DRY RUN — first 10 ---")
         for d, n, p in rows[:10]:
-            print(f"  [{d:10s}] {n!r:40s}  {p or ''}")
+            ism = first_name(n)
+            login = f"{args.prefix}{ism}"
+            print(f"  [{d:10s}] {n:38s} login={login}")
         return 0
 
     install_tenant_listener()
@@ -281,7 +361,7 @@ async def main(argv: list[str] | None = None) -> int:
             return code
 
         depts: dict[str, Department] = {}
-        created: list[tuple[str, str, str, str, str]] = []  # (dept, name, position, login, password)
+        created: list[tuple[str, str, str, str, str]] = []
         skipped: list[str] = []
 
         for dept_name, full_name, position in rows:
@@ -355,8 +435,7 @@ async def main(argv: list[str] | None = None) -> int:
 
         await db.commit()
 
-        # Persist credentials next to the Excel as a CSV.
-        out_path = args.excel.with_name("novza_credentials.csv")
+        out_path = Path("/tmp/novza_credentials.csv")
         with out_path.open("w", encoding="utf-8", newline="") as fh:
             w = csv.writer(fh)
             w.writerow(["department", "full_name", "position", "login", "password"])
@@ -372,7 +451,7 @@ async def main(argv: list[str] | None = None) -> int:
             if len(skipped) > 10:
                 print(f"    … and {len(skipped) - 10} more")
         print()
-        print(f"💾 Credentials saved → {out_path}")
+        print(f"💾 Credentials saved → {out_path} (inside container)")
         print()
         print("FIRST 10 LOGINS (full list in CSV):")
         for d, fn, _pos, lg, pw in created[:10]:

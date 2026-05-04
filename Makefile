@@ -36,38 +36,30 @@ makemigration: ## Create new alembic migration (msg="message")
 seed: ## Seed initial Owner user
 	$(COMPOSE) exec api python -m scripts.seed_owner
 
-# Novza employees + departments + 9-18 shift from an Excel file.
-# Usage:
-#   make seed-novza xlsx=/abs/path/to/Tabel.xlsx
-#   make seed-novza xlsx=./novza/Tabel.xlsx prefix=novza_ company=novza dry=1
-seed-novza: ## Seed Novza employees from xlsx (xlsx=path, optional dry=1)
-	@test -n "$(xlsx)" || (echo "❌ xlsx=path is required (e.g. xlsx=./novza/Tabel.xlsx)" && exit 2)
-	@test -f "$(xlsx)" || (echo "❌ file not found: $(xlsx)" && exit 2)
-	$(COMPOSE) cp "$(xlsx)" api:/tmp/novza.xlsx
-	$(COMPOSE) exec api python -m scripts.seed_novza /tmp/novza.xlsx \
-		--company $(or $(company),novza) \
+# Novza-Eshiklari — embedded employee list, no xlsx needed.
+# Optional vars: company= branch= hire_date= prefix= dry=1
+seed-novza: ## Seed Novza-Eshiklari employees (dry=1 to preview only)
+	$(COMPOSE) exec api python -m scripts.seed_novza \
+		--company $(or $(company),novza-eshiklari) \
 		--branch "$(or $(branch),Asosiy filial)" \
 		--hire-date $(or $(hire_date),2026-05-04) \
 		--prefix $(or $(prefix),novza_) \
 		$(if $(dry),--dry-run,)
 	@if [ -z "$(dry)" ]; then \
-		$(COMPOSE) cp api:/tmp/novza_credentials.csv "$(dir $(xlsx))novza_credentials.csv" && \
-		echo "💾 Credentials → $(dir $(xlsx))novza_credentials.csv"; \
+		$(COMPOSE) cp api:/tmp/novza_credentials.csv ./novza_credentials.csv && \
+		echo "💾 Credentials → ./novza_credentials.csv"; \
 	fi
 
-prod-seed-novza: ## Seed Novza employees in PRODUCTION (xlsx=path)
-	@test -n "$(xlsx)" || (echo "❌ xlsx=path is required" && exit 2)
-	@test -f "$(xlsx)" || (echo "❌ file not found: $(xlsx)" && exit 2)
-	$(COMPOSE_PROD) cp "$(xlsx)" api:/tmp/novza.xlsx
-	$(COMPOSE_PROD) exec api python -m scripts.seed_novza /tmp/novza.xlsx \
-		--company $(or $(company),novza) \
+prod-seed-novza: ## Seed Novza-Eshiklari employees in PRODUCTION
+	$(COMPOSE_PROD) exec api python -m scripts.seed_novza \
+		--company $(or $(company),novza-eshiklari) \
 		--branch "$(or $(branch),Asosiy filial)" \
 		--hire-date $(or $(hire_date),2026-05-04) \
 		--prefix $(or $(prefix),novza_) \
 		$(if $(dry),--dry-run,)
 	@if [ -z "$(dry)" ]; then \
-		$(COMPOSE_PROD) cp api:/tmp/novza_credentials.csv "$(dir $(xlsx))novza_credentials.csv" && \
-		echo "💾 Credentials → $(dir $(xlsx))novza_credentials.csv"; \
+		$(COMPOSE_PROD) cp api:/tmp/novza_credentials.csv ./novza_credentials.csv && \
+		echo "💾 Credentials → ./novza_credentials.csv"; \
 	fi
 
 shell-api: ## Open shell in api container
