@@ -41,9 +41,10 @@ services:
 
   minio:
     # files.hr-profi.uz uchun host nginx 127.0.0.1:9100 ga proxy qiladi.
-    ports:
+    # !override muhim — dev fayldagi 9000:9000 / 9001:9001 (0.0.0.0)
+    # binding'lar bilan birlashib qolmasligi uchun.
+    ports: !override
       - "127.0.0.1:9100:9000"
-      # Konsol ixtiyoriy — bo'sh qoldirsa ham bo'ladi.
       - "127.0.0.1:9101:9001"
     deploy:
       resources:
@@ -67,7 +68,7 @@ services:
                 -b 0.0.0.0:8000
                 --access-logfile -
                 --error-logfile -"
-    ports:
+    ports: !override
       - "127.0.0.1:8100:8000"
     deploy:
       resources:
@@ -100,7 +101,7 @@ services:
         # Admin-web ichidagi nginx /api/v1 ni proxy qiladi (same-origin, CORSsiz).
         VITE_API_URL: /api/v1
         VITE_WS_URL: /ws
-    ports:
+    ports: !override
       - "127.0.0.1:8101:80"
     deploy:
       resources:
@@ -114,7 +115,7 @@ services:
       dockerfile: Dockerfile
       args:
         API_PROXY_TARGET: http://api:8000
-    ports:
+    ports: !override
       - "127.0.0.1:8102:5174"
     deploy:
       resources:
@@ -126,7 +127,7 @@ services:
       context: ./infra/landing
       dockerfile: Dockerfile
     restart: unless-stopped
-    ports:
+    ports: !override
       - "127.0.0.1:8103:80"
     deploy:
       resources:
