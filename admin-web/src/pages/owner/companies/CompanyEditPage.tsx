@@ -207,6 +207,7 @@ export function CompanyEditPage() {
 
       <CompanyForm
         mode="edit"
+        companyId={c.id}
         initial={fromCompany(c)}
         saving={updateMut.isPending}
         error={updateMut.error}

@@ -85,7 +85,27 @@ export const TIMEZONES = [
   "Asia/Bishkek",
   "Asia/Dushanbe",
   "Asia/Ashgabat",
+  "Asia/Baku",
   "Europe/Moscow",
+  "Europe/Istanbul",
+  "Europe/Kiev",
   "UTC",
 ];
-export const CURRENCIES = ["UZS", "USD", "RUB", "EUR", "KZT"];
+export const CURRENCIES = ["UZS", "USD", "RUB", "EUR", "KZT", "TRY", "AED"];
+
+/** Common target countries — flag, ISO-3166 code, native name. Used as a
+ * dropdown in the company form so OWNER doesn't have to memorise codes. */
+export const COUNTRIES: { code: string; flag: string; name: string }[] = [
+  { code: "UZ", flag: "🇺🇿", name: "O'zbekiston" },
+  { code: "KZ", flag: "🇰🇿", name: "Қазақстан" },
+  { code: "KG", flag: "🇰🇬", name: "Кыргызстан" },
+  { code: "TJ", flag: "🇹🇯", name: "Тоҷикистон" },
+  { code: "TM", flag: "🇹🇲", name: "Türkmenistan" },
+  { code: "AZ", flag: "🇦🇿", name: "Azərbaycan" },
+  { code: "RU", flag: "🇷🇺", name: "Россия" },
+  { code: "UA", flag: "🇺🇦", name: "Україна" },
+  { code: "TR", flag: "🇹🇷", name: "Türkiye" },
+  { code: "AE", flag: "🇦🇪", name: "United Arab Emirates" },
+  { code: "US", flag: "🇺🇸", name: "United States" },
+  { code: "GB", flag: "🇬🇧", name: "United Kingdom" },
+];
