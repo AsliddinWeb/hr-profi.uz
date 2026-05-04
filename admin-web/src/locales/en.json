@@ -1372,6 +1372,7 @@
     "name": "Name",
     "slug": "Slug (URL ID)",
     "slug_hint": "Latin letters, digits and '-' only. After creation only OWNER can change.",
+    "slug_auto_hint": "Auto-generated from the name — feel free to override.",
     "logo_url": "Logo URL",
     "logo_preview_hint": "PNG or SVG recommended.",
     "logo": "Logo",

@@ -1373,6 +1373,7 @@
     "name": "Nomi",
     "slug": "Slug (URL ID)",
     "slug_hint": "Faqat lotin harflar, raqamlar va '-'. Yaratilgandan keyin ham OWNER o'zgartirishi mumkin.",
+    "slug_auto_hint": "Avtomatik yaratildi — qo'lda o'zgartirsangiz ham bo'ladi.",
     "logo_url": "Logo URL",
     "logo_preview_hint": "PNG yoki SVG tavsiya etiladi.",
     "logo": "Logo",

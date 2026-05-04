@@ -1,4 +1,5 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import {
   Building2,
@@ -11,6 +12,7 @@ import {
   Trash2,
   Upload,
   UserPlus,
+  Wand2,
 } from "lucide-react";
 
 import { api, apiErrorMessage } from "@/lib/api";
@@ -18,6 +20,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { useEnumLabel } from "@/lib/enum";
 import { cn } from "@/lib/cn";
+import type { Company, Page } from "@/lib/types";
 
 import {
   COUNTRIES,
@@ -51,10 +54,54 @@ export function CompanyForm({
   const label = useEnumLabel();
   const [form, setForm] = useState<CompanyFormState>(initial);
 
+  // Track whether the slug has been edited by hand. In create mode it
+  // starts auto (we'll regenerate from name). In edit mode it starts
+  // "touched" so we never silently rewrite a published slug.
+  const [slugTouched, setSlugTouched] = useState(mode === "edit");
+
+  // Pull existing slugs once so we can append "-2", "-3"… if the name a
+  // user types collides. Only fetched when we might auto-generate.
+  const slugsQ = useQuery({
+    queryKey: ["owner", "companies", "all-slugs"],
+    queryFn: async () => {
+      const r = await api.get<Page<Company>>("/owner/companies", {
+        params: { size: 500 },
+      });
+      return r.data.items.map((c) => ({ id: c.id, slug: c.slug }));
+    },
+    enabled: !slugTouched || mode === "create",
+    staleTime: 60_000,
+  });
+
+  const existingSlugs = useMemo(() => {
+    const set = new Set<string>();
+    for (const row of slugsQ.data ?? []) {
+      if (row.id !== companyId) set.add(row.slug);
+    }
+    return set;
+  }, [slugsQ.data, companyId]);
+
   const update = <K extends keyof CompanyFormState>(
     k: K,
     v: CompanyFormState[K]
   ) => setForm((f) => ({ ...f, [k]: v }));
+
+  const onNameChange = (v: string) => {
+    setForm((f) => {
+      if (slugTouched) return { ...f, name: v };
+      // Auto-suggest: slugify(name) → if collision, append -2 / -3 / …
+      const next = uniqueSlug(slugify(v), existingSlugs);
+      return { ...f, name: v, slug: next };
+    });
+  };
+
+  const onSlugChange = (raw: string) => {
+    const cleaned = raw.toLowerCase().replace(/[^a-z0-9-]/g, "");
+    setForm((f) => ({ ...f, slug: cleaned }));
+    // If the user clears the field, snap back to auto-mode so the next
+    // keystroke in the name input regenerates.
+    setSlugTouched(cleaned.length > 0);
+  };
 
   return (
     <form
@@ -75,19 +122,27 @@ export function CompanyForm({
             label={t("owner_companies.name") + " *"}
             required
             value={form.name}
-            onChange={(e) => update("name", e.target.value)}
+            onChange={(e) => onNameChange(e.target.value)}
             placeholder="Acme LLC"
           />
           <Input
             label={t("owner_companies.slug") + " *"}
             required
             value={form.slug}
-            onChange={(e) =>
-              update("slug", e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))
-            }
+            onChange={(e) => onSlugChange(e.target.value)}
             placeholder="acme"
-            hint={t("owner_companies.slug_hint") ?? undefined}
-            prefix={<span className="text-[11px]">/</span>}
+            hint={
+              !slugTouched && form.slug
+                ? t("owner_companies.slug_auto_hint")
+                : (t("owner_companies.slug_hint") ?? undefined)
+            }
+            prefix={
+              !slugTouched && form.slug ? (
+                <Wand2 className="size-3.5 text-brand-600" />
+              ) : (
+                <span className="text-[11px]">/</span>
+              )
+            }
           />
         </div>
 
@@ -535,4 +590,43 @@ function formatRemaining(
   if (diff < 0) return t("owner_companies.subscription_expired_ago", { days: -diff });
   if (diff === 0) return t("owner_companies.subscription_expires_today");
   return t("owner_companies.subscription_expires_in", { days: diff });
+}
+
+/* ------------------------------------------------------------------ */
+/* Slug helpers — slugify(name) + collision-aware suffix.              */
+/* ------------------------------------------------------------------ */
+
+// Common Cyrillic → Latin transliteration so a Russian/Uzbek-Cyrillic
+// company name doesn't collapse to an empty slug. Lossy on purpose
+// (we strip diacritics afterwards).
+const CYR: Record<string, string> = {
+  а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "yo", ж: "zh",
+  з: "z", и: "i", й: "y", к: "k", л: "l", м: "m", н: "n", о: "o",
+  п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f", х: "h", ц: "ts",
+  ч: "ch", ш: "sh", щ: "sch", ъ: "", ы: "y", ь: "", э: "e", ю: "yu",
+  я: "ya", ў: "o", ғ: "g", қ: "q", ҳ: "h", ҷ: "j", ӣ: "i",
+};
+
+export function slugify(input: string): string {
+  if (!input) return "";
+  const lower = input.toLowerCase();
+  let out = "";
+  for (const ch of lower) {
+    out += CYR[ch] ?? ch;
+  }
+  return out
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/['ʼʹ`]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 50);
+}
+
+export function uniqueSlug(base: string, existing: Set<string>): string {
+  if (!base) return "";
+  if (!existing.has(base)) return base;
+  let i = 2;
+  while (existing.has(`${base}-${i}`)) i++;
+  return `${base}-${i}`;
 }
