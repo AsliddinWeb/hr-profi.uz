@@ -22,6 +22,7 @@ from app.services.reports.extras import (
     late_absence_trend,
     leave_balance,
 )
+from app.services.reports.i18n import localize_report
 from app.services.reports.salary import salary_register
 
 logger = logging.getLogger(__name__)
@@ -198,6 +199,18 @@ async def run_job(db: AsyncSession, job_id: UUID) -> ReportJob:
 
     try:
         headers, rows = await _collect_rows(db, job, user)
+
+        # Translate English headers + categorical cells (status, direction,
+        # salary type, lifecycle) to the requester's language. PDF/XLSX/CSV
+        # all see the localized values from this point on. The PDF template
+        # uses ``status_label_to_class_map`` to keep CSS class names stable.
+        report_type_for_i18n = (
+            job.type.value if hasattr(job.type, "value") else str(job.type)
+        )
+        locale = (getattr(user, "language", None) or "uz") or "uz"
+        headers, rows = localize_report(
+            report_type_for_i18n, headers, rows, locale=locale
+        )
 
         from app.models.company import Company
 

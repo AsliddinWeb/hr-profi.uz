@@ -207,6 +207,24 @@ async def render_personal_pdf(
             cur += timedelta(days=1)
             continue
 
+        # Pick a status code; localize for display but keep the raw
+        # English code so the PDF stylesheet's pill colours still match.
+        from app.services.reports.i18n import STATUS_LABELS
+
+        status_code = (
+            "ON_LEAVE"
+            if (accrual and float(accrual.base_earned or 0) > 0 and not day_recs)
+            else (
+                "PRESENT"
+                if day_recs
+                else "ABSENT" if cur < Date.today() else ""
+            )
+        )
+        status_display = (
+            STATUS_LABELS.get(status_code, {}).get(locale, status_code)
+            if status_code
+            else ""
+        )
         rows.append(
             {
                 "date": cur.isoformat(),
@@ -217,9 +235,8 @@ async def render_personal_pdf(
                 "late": str(late_min) if late_min else "—",
                 "base": f"{base:,}".replace(",", " ") if base else "—",
                 "total": f"{total:,}".replace(",", " ") if total else "—",
-                "status": "ON_LEAVE" if (
-                    accrual and float(accrual.base_earned or 0) > 0 and not day_recs
-                ) else ("PRESENT" if day_recs else "ABSENT" if cur < Date.today() else ""),
+                "status": status_display,
+                "status_class": status_code,
             }
         )
         cur += timedelta(days=1)
@@ -231,8 +248,8 @@ async def render_personal_pdf(
         ),
         "ot_hours": sum(float(r["ot"]) for r in rows if r["ot"] != "—"),
         "late_minutes": sum(int(r["late"]) for r in rows if r["late"] != "—"),
-        "absent_days": sum(1 for r in rows if r["status"] == "ABSENT"),
-        "leave_days": sum(1 for r in rows if r["status"] == "ON_LEAVE"),
+        "absent_days": sum(1 for r in rows if r.get("status_class") == "ABSENT"),
+        "leave_days": sum(1 for r in rows if r.get("status_class") == "ON_LEAVE"),
         "base": int(round(float(period.base_amount))) if period else 0,
         "overtime": int(round(float(period.overtime_amount))) if period else 0,
         "bonuses": int(round(float(period.bonuses_total))) if period else 0,

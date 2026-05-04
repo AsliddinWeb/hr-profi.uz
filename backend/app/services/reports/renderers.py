@@ -51,6 +51,7 @@ _STATUS_VALUES = {
     "PRESENT", "LATE", "ABSENT", "ON_LEAVE", "REST_DAY", "NOT_SCHEDULED",
     "DRAFT", "FINALIZED", "APPROVED", "PARTIALLY_PAID", "PAID",
     "PENDING", "RUNNING", "READY", "FAILED",
+    "BONUS", "DEDUCTION",
 }
 
 
@@ -64,7 +65,7 @@ def _compute_totals(report_type: str, rows: list[list[str]]) -> list[str] | None
 
     if report_type == ReportType.ATTENDANCE_MONTHLY.value:
         # Sum cols 5..11 (days, hours, late, OT, absent, leave, rest)
-        total = ["", "", "", "", "TOTAL"]
+        total = ["", "", "", "", "JAMI"]
         for col in range(5, 12):
             if col == 6:
                 # "Total hours" is "h:mm" — sum minutes.
@@ -85,7 +86,7 @@ def _compute_totals(report_type: str, rows: list[list[str]]) -> list[str] | None
         return total
 
     if report_type == ReportType.SALARY_REGISTER.value:
-        total = ["", "", "", "", "TOTAL"]
+        total = ["", "", "", "", "JAMI"]
         # Sum cols 5..12 (base, OT, bonuses, KPI, deductions, total, paid, pending)
         for col in range(5, 13):
             s = 0
@@ -101,7 +102,7 @@ def _compute_totals(report_type: str, rows: list[list[str]]) -> list[str] | None
     if report_type == ReportType.LATE_ABSENCE_TREND.value:
         # Sum cols 4..8 (late count, late minutes, avg, absent, worst). Avg
         # is left blank because mean-of-means isn't meaningful.
-        total = ["", "", "", "TOTAL"]
+        total = ["", "", "", "JAMI"]
         for col, summable in [(4, True), (5, True), (6, False), (7, True), (8, False)]:
             if not summable:
                 total.append("")
@@ -199,6 +200,20 @@ def render_pdf(
 
     totals = _compute_totals(report_type, rows)
 
+    # Pill detection has to use the LOCALIZED label set (because the
+    # caller already translated the cells). The class map gives us the
+    # English code so the CSS stylesheet keeps working unchanged.
+    from app.services.reports.i18n import (
+        localized_status_labels,
+        status_label_to_class_map,
+    )
+
+    pill_labels = localized_status_labels(locale)
+    # Always also accept the raw English codes for forward compatibility
+    # — newly added statuses without translations still render as pills.
+    pill_labels |= _STATUS_VALUES
+    status_class = status_label_to_class_map(locale)
+
     rendered = _jinja.get_template("report.html.j2").render(
         base_css=base_css,
         report_title=title_map[report_type][locale],
@@ -224,7 +239,8 @@ def render_pdf(
         rows=rows,
         totals=totals,
         numeric_columns=_NUMERIC_BY_TYPE.get(report_type, set()),
-        status_pill_values=_STATUS_VALUES,
+        status_pill_values=pill_labels,
+        status_class=status_class,
     )
     return HTML(string=rendered).write_pdf()
 

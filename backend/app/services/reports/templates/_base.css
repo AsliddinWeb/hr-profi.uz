@@ -157,6 +157,33 @@ table.data tbody td.numeric {
   color: #475569;
 }
 
+/* Salary period lifecycle */
+.status-pill.DRAFT { background: #f1f5f9; color: #475569; }
+.status-pill.FINALIZED { background: #fef3c7; color: #92400e; }
+.status-pill.APPROVED { background: #dbeafe; color: #1e3a8a; }
+.status-pill.PARTIALLY_PAID { background: #fef3c7; color: #92400e; }
+.status-pill.PAID { background: #d1fae5; color: #065f46; }
+
+/* Bonus / deduction direction */
+.status-pill.BONUS { background: #d1fae5; color: #065f46; }
+.status-pill.DEDUCTION { background: #fee2e2; color: #991b1b; }
+
+/* Employee lifecycle */
+.status-pill.active { background: #d1fae5; color: #065f46; }
+.status-pill.inactive, .status-pill.terminated {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Salary type — neutral, no special colour */
+.status-pill.MONTHLY,
+.status-pill.HOURLY,
+.status-pill.DAILY,
+.status-pill.KPI_BASED {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
 .signatures {
   margin-top: 12mm;
   display: flex;

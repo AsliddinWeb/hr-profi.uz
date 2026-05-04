@@ -40,7 +40,11 @@
             {% if loop.index0 in numeric_columns %}
               <td class="numeric">{{ cell }}</td>
             {% elif cell in status_pill_values %}
-              <td><span class="status-pill {{ cell }}">{{ cell }}</span></td>
+              {# Class keyed off the original ENGLISH code so the CSS
+                 stays locale-agnostic; the visible text is the localized
+                 label. ``status_class[cell]`` falls back to ``cell`` for
+                 codes the i18n module doesn't translate. #}
+              <td><span class="status-pill {{ status_class[cell] | default(cell) }}">{{ cell }}</span></td>
             {% else %}
               <td>{{ cell }}</td>
             {% endif %}
