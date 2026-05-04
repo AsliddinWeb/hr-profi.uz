@@ -60,14 +60,13 @@ services:
     # Dev volume mount'ni o'chiramiz — image ichidagi build ishlasin.
     volumes: !override
       - media:/app/media
-    command: >
-      sh -c "alembic upgrade head &&
-             gunicorn app.main:app
-                -k uvicorn.workers.UvicornWorker
-                -w 1
-                -b 0.0.0.0:8000
-                --access-logfile -
-                --error-logfile -"
+    # Exec-form (JSON array) — YAML folding xatolarisiz, gunicorn flag'lari
+    # to'g'ridan-to'g'ri o'tadi. ``exec`` qoldirib kelmasdan, sh PID 1 da
+    # qolib qolmasligi uchun ishlatamiz (signal/Ctrl+C to'g'ri o'tadi).
+    command:
+      - sh
+      - -c
+      - "alembic upgrade head && exec gunicorn app.main:app -k uvicorn.workers.UvicornWorker -w 1 -b 0.0.0.0:8000 --access-logfile - --error-logfile -"
     ports:
       - "127.0.0.1:8100:8000"
     deploy:
