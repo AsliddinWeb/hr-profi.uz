@@ -74,6 +74,16 @@
     "show_payload": "Ma'lumotni ko'rsatish",
     "hide_payload": "Yashirish"
   },
+  "logo_uploader": {
+    "upload": "Logo yuklash",
+    "change": "Almashtirish",
+    "remove": "O'chirish",
+    "format_hint": "PNG, JPEG, WebP yoki SVG. Maksimal 5 MB. Kvadrat shakl tavsiya etiladi.",
+    "too_large": "Fayl juda katta — 5 MB dan oshmasin.",
+    "load_error": "Logo yuklanmadi — URL noto'g'ri yoki fayl mavjud emas.",
+    "after_create_title": "Logo keyin yuklanadi",
+    "after_create_hint": "Resurs yaratilgandan so'ng logoni yuklash imkoniyati ochiladi."
+  },
   "common": {
     "loading": "Yuklanmoqda...",
     "save": "Saqlash",
@@ -204,6 +214,13 @@
     "recent": "So'nggi hisobotlar",
     "recent_hint": "Tayyor bo'lganlarini yuklab olish, FAILEDlarni qayta ishga tushirish",
     "empty": "Hozircha hisobot yo'q",
+    "empty_title": "Hali hisobot tayyorlanmagan",
+    "picker_title": "Yangi hisobot yaratish",
+    "picker_hint": "Quyidagi turlardan birini tanlang — parametrlarni keyin sozlaysiz.",
+    "stat_total": "Jami",
+    "stat_ready": "Tayyor",
+    "stat_in_flight": "Tayyorlanmoqda",
+    "stat_failed": "Xato",
     "rows": "qator",
     "created": "Yaratildi",
     "finished": "Tugadi",
@@ -995,6 +1012,7 @@
     "slug_locked_hint": "Slug'ni faqat OWNER o'zgartirishi mumkin.",
     "logo_url": "Logo URL",
     "logo_preview_hint": "Logo PNG yoki SVG bo'lishi tavsiya etiladi.",
+    "logo": "Kompaniya logosi",
 
     "section_locale": "Til, vaqt va valyuta",
     "section_locale_hint": "Hisobotlar va ko'rsatkichlar shu sozlamalardan foydalanadi.",

@@ -7,6 +7,7 @@ import { Save } from "lucide-react";
 import { api, apiErrorMessage } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { LogoUploader } from "@/components/LogoUploader";
 import { useAuthStore } from "@/stores/auth";
 import type { Company } from "@/lib/types";
 
@@ -101,13 +102,13 @@ export function CompanyTab() {
         title={t("settings_page.section_company_identity")}
         hint={t("settings_page.section_company_identity_hint")}
       >
-        <Input
-          label={t("settings_page.company_name") + " *"}
-          required
-          value={form.name}
-          onChange={(e) => update("name", e.target.value)}
-        />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Input
+            label={t("settings_page.company_name") + " *"}
+            required
+            value={form.name}
+            onChange={(e) => update("name", e.target.value)}
+          />
           <Input
             label={t("settings_page.company_slug")}
             value={form.slug}
@@ -119,25 +120,17 @@ export function CompanyTab() {
                 : (t("settings_page.slug_locked_hint") ?? undefined)
             }
           />
-          <Input
-            label={t("settings_page.logo_url")}
+        </div>
+
+        <div>
+          <label className="label">{t("settings_page.logo")}</label>
+          <LogoUploader
             value={form.logo_url}
-            onChange={(e) => update("logo_url", e.target.value)}
-            placeholder="https://…/logo.png"
+            onChange={(url) => update("logo_url", url)}
+            companyId={isOwner ? c.id : undefined}
+            fallbackName={form.name}
           />
         </div>
-        {form.logo_url && (
-          <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 p-2">
-            <img
-              src={form.logo_url}
-              alt=""
-              className="size-12 rounded-md object-contain ring-1 ring-slate-200"
-            />
-            <p className="text-[11px] text-slate-500">
-              {t("settings_page.logo_preview_hint")}
-            </p>
-          </div>
-        )}
       </Section>
 
       {/* Locale + currency */}

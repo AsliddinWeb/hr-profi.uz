@@ -74,6 +74,16 @@
     "show_payload": "Show payload",
     "hide_payload": "Hide"
   },
+  "logo_uploader": {
+    "upload": "Upload logo",
+    "change": "Replace",
+    "remove": "Remove",
+    "format_hint": "PNG, JPEG, WebP or SVG. Max 5 MB. Square image recommended.",
+    "too_large": "File too large — keep it under 5 MB.",
+    "load_error": "Logo failed to load — bad URL or missing file.",
+    "after_create_title": "Logo can be uploaded later",
+    "after_create_hint": "Once the resource is created you can upload a logo on the edit screen."
+  },
   "common": {
     "loading": "Loading...",
     "save": "Save",
@@ -203,6 +213,13 @@
     "recent": "Recent reports",
     "recent_hint": "Download ready ones, retry failed ones",
     "empty": "No reports yet",
+    "empty_title": "No reports generated yet",
+    "picker_title": "Create a new report",
+    "picker_hint": "Pick a type below — you'll set parameters next.",
+    "stat_total": "Total",
+    "stat_ready": "Ready",
+    "stat_in_flight": "In flight",
+    "stat_failed": "Failed",
     "rows": "rows",
     "created": "Created",
     "finished": "Finished",
@@ -994,6 +1011,7 @@
     "slug_locked_hint": "Only the OWNER can change the slug.",
     "logo_url": "Logo URL",
     "logo_preview_hint": "PNG or SVG recommended.",
+    "logo": "Company logo",
 
     "section_locale": "Language, time and currency",
     "section_locale_hint": "Reports and metrics use these settings.",
