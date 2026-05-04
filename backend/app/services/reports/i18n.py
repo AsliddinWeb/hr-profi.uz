@@ -164,6 +164,8 @@ STATUS_LABELS: dict[str, dict[Locale, str]] = {
 
 # Per-report-type, the columns whose CELL VALUES should be translated via
 # STATUS_LABELS (status/direction/lifecycle). Column index is 0-based.
+# NOTE: ``localize_report`` runs BEFORE ``add_row_numbers``, so these
+# indices are against the ORIGINAL generator output (no "№" column yet).
 LOCALIZED_COLUMNS: dict[str, list[int]] = {
     ReportType.ATTENDANCE_DAILY.value: [10],          # "Status"
     ReportType.SALARY_REGISTER.value: [13],           # "Status"
@@ -186,6 +188,19 @@ def status_label_to_class_map(locale: Locale = "uz") -> dict[str, str]:
     return {
         labels.get(locale, code): code for code, labels in STATUS_LABELS.items()
     }
+
+
+def add_row_numbers(
+    headers: list[str], rows: list[list[str]]
+) -> tuple[list[str], list[list[str]]]:
+    """Prepend a 1-based ``№`` column so the printed PDF/XLSX gives
+    every row an obvious sequential ID. Run AFTER ``localize_report``
+    because the renderer's column-index metadata (numeric columns,
+    pill columns, totals layout) is expressed against the post-prepend
+    layout."""
+    new_headers = ["№"] + list(headers)
+    new_rows = [[str(i + 1)] + list(r) for i, r in enumerate(rows)]
+    return new_headers, new_rows
 
 
 def localize_report(

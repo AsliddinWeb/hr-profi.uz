@@ -22,7 +22,7 @@ from app.services.reports.extras import (
     late_absence_trend,
     leave_balance,
 )
-from app.services.reports.i18n import localize_report
+from app.services.reports.i18n import add_row_numbers, localize_report
 from app.services.reports.salary import salary_register
 
 logger = logging.getLogger(__name__)
@@ -211,6 +211,9 @@ async def run_job(db: AsyncSession, job_id: UUID) -> ReportJob:
         headers, rows = localize_report(
             report_type_for_i18n, headers, rows, locale=locale
         )
+        # Prepend a "№" column with 1-based row numbers so the printed
+        # spreadsheet/PDF gives every row an obvious sequential ID.
+        headers, rows = add_row_numbers(headers, rows)
 
         from app.models.company import Company
 
@@ -307,9 +310,27 @@ async def stream_inline(
         raise ValueError(f"unknown_report_type:{report_type}")
     branch_filter = _branch_filter_for(user)
 
+    # Buffer all rows so we can localise + prepend row IDs in one pass.
+    # The inline path is intended for small exports (live download
+    # button), so the trade-off is acceptable.
+    headers: list[str] = []
+    rows: list[list[str]] = []
+    is_header = True
+    async for row in gen_fn(db, company_id, params, branch_filter):
+        if is_header:
+            headers = list(row)
+            is_header = False
+        else:
+            rows.append(list(row))
+
+    locale = (getattr(user, "language", None) or "uz") or "uz"
+    headers, rows = localize_report(report_type.value, headers, rows, locale=locale)
+    headers, rows = add_row_numbers(headers, rows)
+
     buf = io.StringIO()
     writer = csv.writer(buf)
-    async for row in gen_fn(db, company_id, params, branch_filter):
+    writer.writerow(headers)
+    for row in rows:
         writer.writerow(row)
         # Flush in 32KB chunks so the browser's download progress isn't
         # blocked on a giant single write.

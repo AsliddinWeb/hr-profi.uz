@@ -35,15 +35,19 @@ _jinja = Environment(
 # Per-report metadata: which columns are numeric (right-aligned in PDF,
 # numeric format in XLSX), which cells should render as status pills, and
 # how to compute the optional "totals" row.
+#
+# IMPORTANT: indices below are expressed AGAINST THE FINAL POST-PREPEND
+# layout — i.e. column 0 is the "№" row-number column we add in
+# ``report_service``. Column 0 is always numeric.
 _NUMERIC_BY_TYPE: dict[str, set[int]] = {
-    ReportType.ATTENDANCE_DAILY.value: {7, 8, 9},   # Worked, Late, OT
-    ReportType.ATTENDANCE_MONTHLY.value: {5, 6, 7, 8, 9, 10, 11},
-    ReportType.SALARY_REGISTER.value: {5, 6, 7, 8, 9, 10, 11, 12},
-    ReportType.EMPLOYEE_ROSTER.value: {9, 10, 11},  # Base, Daily, Hourly
-    ReportType.KPI_SUMMARY.value: {5, 6, 7, 8, 9, 10},  # counts + reward + penalty
-    ReportType.LEAVE_BALANCE.value: {6, 7, 8},  # cap, used, remaining
-    ReportType.BONUS_DEDUCTION_REGISTER.value: {6},  # amount
-    ReportType.LATE_ABSENCE_TREND.value: {4, 5, 6, 7, 8},
+    ReportType.ATTENDANCE_DAILY.value: {0, 8, 9, 10},
+    ReportType.ATTENDANCE_MONTHLY.value: {0, 6, 7, 8, 9, 10, 11, 12},
+    ReportType.SALARY_REGISTER.value: {0, 6, 7, 8, 9, 10, 11, 12, 13},
+    ReportType.EMPLOYEE_ROSTER.value: {0, 10, 11, 12},
+    ReportType.KPI_SUMMARY.value: {0, 6, 7, 8, 9, 10, 11},
+    ReportType.LEAVE_BALANCE.value: {0, 7, 8, 9},
+    ReportType.BONUS_DEDUCTION_REGISTER.value: {0, 7},
+    ReportType.LATE_ABSENCE_TREND.value: {0, 5, 6, 7, 8, 9},
 }
 
 
@@ -63,11 +67,12 @@ def _compute_totals(report_type: str, rows: list[list[str]]) -> list[str] | None
     if not rows:
         return None
 
+    # Indices below assume the post-prepend layout (column 0 is "№").
     if report_type == ReportType.ATTENDANCE_MONTHLY.value:
-        # Sum cols 5..11 (days, hours, late, OT, absent, leave, rest)
-        total = ["", "", "", "", "JAMI"]
-        for col in range(5, 12):
-            if col == 6:
+        # Sum cols 6..12 (days, hours, late, OT, absent, leave, rest)
+        total = ["", "", "", "", "", "JAMI"]
+        for col in range(6, 13):
+            if col == 7:
                 # "Total hours" is "h:mm" — sum minutes.
                 mins = 0
                 for r in rows:
@@ -86,9 +91,9 @@ def _compute_totals(report_type: str, rows: list[list[str]]) -> list[str] | None
         return total
 
     if report_type == ReportType.SALARY_REGISTER.value:
-        total = ["", "", "", "", "JAMI"]
-        # Sum cols 5..12 (base, OT, bonuses, KPI, deductions, total, paid, pending)
-        for col in range(5, 13):
+        total = ["", "", "", "", "", "JAMI"]
+        # Sum cols 6..13 (base, OT, bonuses, KPI, deductions, total, paid, pending)
+        for col in range(6, 14):
             s = 0
             for r in rows:
                 try:
@@ -100,10 +105,10 @@ def _compute_totals(report_type: str, rows: list[list[str]]) -> list[str] | None
         return total
 
     if report_type == ReportType.LATE_ABSENCE_TREND.value:
-        # Sum cols 4..8 (late count, late minutes, avg, absent, worst). Avg
+        # Sum cols 5..9 (late count, late minutes, avg, absent, worst). Avg
         # is left blank because mean-of-means isn't meaningful.
-        total = ["", "", "", "JAMI"]
-        for col, summable in [(4, True), (5, True), (6, False), (7, True), (8, False)]:
+        total = ["", "", "", "", "JAMI"]
+        for col, summable in [(5, True), (6, True), (7, False), (8, True), (9, False)]:
             if not summable:
                 total.append("")
                 continue
