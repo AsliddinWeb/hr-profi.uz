@@ -73,3 +73,7 @@ coverage/
 
 # Sentry
 .sentryclirc
+
+# Customer-specific data (PII — don't commit)
+novza/
+*_credentials.csv
