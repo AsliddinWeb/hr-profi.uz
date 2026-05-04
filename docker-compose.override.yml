@@ -1,0 +1,21 @@
+# Dev-only overrides — compose ``docker-compose.override.yml`` ni avtomatik
+# yuklaydi (faqat ``-f docker-compose.yml`` ishlatilsa). Prod'da `-f
+# docker-compose.yml -f docker-compose.prod.yml` ishlatamiz, bu fayl
+# yuklanmaydi va port to'qnashuvi bo'lmaydi.
+services:
+  minio:
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  api:
+    ports:
+      - "8000:8000"
+
+  admin_web:
+    ports:
+      - "5173:80"
+
+  client_web:
+    ports:
+      - "5174:5174"
