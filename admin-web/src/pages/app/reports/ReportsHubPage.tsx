@@ -359,9 +359,15 @@ export function ReportsHubPage() {
                 <div className="flex shrink-0 items-center gap-2">
                   {job.status === "READY" && job.file_url && (
                     <a
-                      href={`/api/v1/reports/${job.id}/download`}
+                      // ``file_url`` already points at the public MinIO
+                      // bucket (anonymous read), so we link to it directly
+                      // and skip the auth-protected ``/reports/{id}/download``
+                      // wrapper. Otherwise the browser opens a new tab
+                      // without the JWT and gets 401.
+                      href={job.file_url}
                       target="_blank"
                       rel="noreferrer"
+                      download
                       className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-sm shadow-emerald-600/30 transition hover:bg-emerald-700"
                     >
                       <Download className="size-3.5" />
