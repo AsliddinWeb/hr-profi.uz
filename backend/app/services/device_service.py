@@ -568,6 +568,20 @@ async def process_face_match(
     )
     db.add(rec)
     await db.flush()
+
+    # Salary recompute — same pattern as mobile check-in. Without this
+    # the PWA /salary page would lag until the next ``check_out`` event
+    # or the daily Celery beat tops everything up.
+    try:
+        from app.tasks.salary_tasks import recompute_for_day as _recompute
+
+        _recompute.delay(str(employee.id), event.timestamp.date().isoformat())
+    except Exception:  # noqa: BLE001
+        logger.debug(
+            "salary recompute dispatch skipped for emp=%s day=%s",
+            employee.id,
+            event.timestamp.date(),
+        )
     return rec, anomalies
 
 

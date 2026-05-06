@@ -335,9 +335,33 @@ async def update_employee(
     old_branch = emp.branch_id
     old_active = emp.is_active
     old_template = emp.shift_template_id
+    old_full_name = emp.full_name
 
-    for field, value in data.model_dump(exclude_unset=True).items():
+    diff = data.model_dump(exclude_unset=True)
+    for field, value in diff.items():
         setattr(emp, field, value)
+
+    # Mirror the renames onto the linked User row so the PWA's
+    # /auth/me (which reads User.full_name, not Employee.full_name)
+    # doesn't keep showing the stale name. Same for the active flag —
+    # a terminated employee's user account should also flip inactive
+    # so they can no longer log in.
+    if emp.user_id is not None:
+        from app.models.user import User as UserModel
+
+        target_user = (
+            await db.execute(
+                select(UserModel)
+                .where(UserModel.id == emp.user_id)
+                .execution_options(skip_tenant_filter=True)
+            )
+        ).scalar_one_or_none()
+        if target_user is not None:
+            if "full_name" in diff and emp.full_name != old_full_name:
+                target_user.full_name = emp.full_name
+            if "is_active" in diff:
+                target_user.is_active = bool(emp.is_active)
+
     await db.commit()
     await db.refresh(emp)
 

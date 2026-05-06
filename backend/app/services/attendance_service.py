@@ -247,6 +247,12 @@ async def check_in(
     db.add(rec)
     await db.commit()
     await db.refresh(rec)
+    # Recompute today's accrual + the running month period so the PWA
+    # /salary page reflects the new check-in immediately. Without this,
+    # ``period.total_earned`` lags until the next check-out (or daily
+    # Celery beat) and the admin LiveEarningsCard's frontend-computed
+    # value diverges from what the employee sees.
+    _enqueue_salary_recompute(emp.id, today)
     if not in_geofence:
         # Store i18n key + arguments alongside the English fallback. The
         # frontend prefers ``payload.t_key`` over the stored title when
