@@ -199,6 +199,16 @@ async def check_in(
     await _block_if_on_leave(db, emp.id, today)
 
     sched, tpl = await _scheduled_shift(db, emp.id, today)
+    if tpl is None and emp.shift_template_id is not None:
+        # Fallback: ShiftSchedule row missing for today (e.g. employee
+        # was assigned a template before the auto-regenerator ran, or
+        # the calendar hasn't been bootstrapped yet). Use the employee's
+        # default template's start_time so late detection still fires.
+        tpl = (
+            await db.execute(
+                select(ShiftTemplate).where(ShiftTemplate.id == emp.shift_template_id)
+            )
+        ).scalar_one_or_none()
     is_late, late_minutes = False, 0
     if tpl and tpl.start_time is not None:
         scheduled_dt = datetime.combine(today, tpl.start_time, tzinfo=timezone.utc)

@@ -356,6 +356,29 @@ async def daily_overview(
     ).scalars().all()
     sched_by_emp: dict[UUID, ShiftSchedule] = {s.employee_id: s for s in sched_rows}
 
+    # Templates the employees are pinned to. Needed so we can compute
+    # ``late_min`` on the fly from ``first_in`` vs ``template.start_time``
+    # — relying on AttendanceRecord.late_minutes alone breaks when the
+    # check-in happened before a schedule existed for the day, leaving
+    # the stored value at 0.
+    template_ids: set[UUID] = set()
+    for s in sched_rows:
+        if s.shift_template_id:
+            template_ids.add(s.shift_template_id)
+    for e in employees:
+        if e.shift_template_id:
+            template_ids.add(e.shift_template_id)
+    template_by_id: dict[UUID, "ShiftTemplate"] = {}
+    if template_ids:
+        from app.models.shift import ShiftTemplate
+
+        tpl_rows = (
+            await db.execute(
+                select(ShiftTemplate).where(ShiftTemplate.id.in_(template_ids))
+            )
+        ).scalars().all()
+        template_by_id = {t.id: t for t in tpl_rows}
+
     # Approved leaves overlapping the day. Used to surface ON_LEAVE on the
     # Live overview regardless of whether the employee checked in — a paid
     # vacation should never look like an ABSENCE on the dashboard.
@@ -419,16 +442,40 @@ async def daily_overview(
             if ongoing > 0:
                 worked_min += int(ongoing)
 
+        # Cross-check the recorded late_min against (first_in vs template).
+        # The check-in record's stored ``late_minutes`` is 0 when the
+        # employee checked in before today's ShiftSchedule existed (a
+        # bootstrapping window). Recompute on the fly using the schedule's
+        # template if available, falling back to the employee's default
+        # template assignment. Whichever is larger wins so we never under-
+        # report tardiness.
+        effective_tpl = None
+        if sched and sched.shift_template_id:
+            effective_tpl = template_by_id.get(sched.shift_template_id)
+        if effective_tpl is None and emp.shift_template_id:
+            effective_tpl = template_by_id.get(emp.shift_template_id)
+        if first_in is not None and effective_tpl and effective_tpl.start_time:
+            scheduled_dt = datetime.combine(
+                day, effective_tpl.start_time, tzinfo=timezone.utc
+            )
+            diff = int((first_in - scheduled_dt).total_seconds() // 60)
+            if diff > late_min:
+                late_min = max(0, diff)
+
         # Status decision tree.
         #
         # Order matters: an approved leave overrides everything else (the
         # employee is contractually allowed to be away today, so they must
         # not show up as ABSENT/LATE/PRESENT). Rest day comes next, and only
-        # then do we look at actual attendance signals.
+        # then do we look at actual attendance signals. LATE wins over
+        # IN_PROGRESS because a 17:31 check-in on a 9-18 shift is far more
+        # informative than "currently in".
         if emp.id in on_leave:
             status_label = "ON_LEAVE"
         elif sched and sched.status == ScheduleStatus.REST_DAY.value:
             status_label = "REST_DAY"
+        elif first_in is not None and late_min > 0:
+            status_label = "LATE"
         elif is_in:
             status_label = "IN_PROGRESS"
         elif first_in is None:
@@ -450,7 +497,7 @@ async def daily_overview(
             else:
                 status_label = "NOT_SCHEDULED"
         else:
-            status_label = "LATE" if late_min > 0 else "PRESENT"
+            status_label = "PRESENT"
 
         out.append(
             DailyOverviewRow(
