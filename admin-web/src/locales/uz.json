@@ -908,6 +908,12 @@
     "hub_subtitle": "Smena shablonlarini boshqarish va xodimlarning oylik jadvalini tuzish.",
     "tab_schedule": "Oylik jadval",
     "tab_templates": "Shablonlar",
+    "section_working_days": "Ish kunlari",
+    "section_working_days_hint": "Shablon haftaning qaysi kunlari amal qilishini tanlang. Belgilangan kunlar — ish kuni, qolgani — dam.",
+    "preset_mon_fri": "Du-Ju (5 kun)",
+    "preset_mon_sat": "Du-Sh (6 kun)",
+    "preset_all_week": "Hafta davomida (7)",
+    "working_days_empty_warning": "Kamida 1 ta ish kuni tanlanishi kerak.",
 
     "add_template": "Shablon qo'shish",
     "template_name": "Shablon nomi",

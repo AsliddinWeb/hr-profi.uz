@@ -907,6 +907,12 @@
     "hub_subtitle": "Управление шаблонами смен и месячным графиком сотрудников.",
     "tab_schedule": "График",
     "tab_templates": "Шаблоны",
+    "section_working_days": "Рабочие дни",
+    "section_working_days_hint": "Выберите дни недели, в которые шаблон активен. Отмеченные — рабочие, остальные — выходные.",
+    "preset_mon_fri": "Пн-Пт (5 дн.)",
+    "preset_mon_sat": "Пн-Сб (6 дн.)",
+    "preset_all_week": "Вся неделя (7)",
+    "working_days_empty_warning": "Должен быть выбран хотя бы один рабочий день.",
 
     "add_template": "Добавить шаблон",
     "template_name": "Название шаблона",

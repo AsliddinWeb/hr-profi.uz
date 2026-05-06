@@ -23,6 +23,8 @@ export interface TemplateFormValue {
   break_minutes: string;
   expected_hours: string;
   allow_overtime: boolean;
+  /** ISO weekdays (1=Mon … 7=Sun) the template is in service on. */
+  working_days: number[];
 }
 
 export const emptyTemplateForm: TemplateFormValue = {
@@ -33,6 +35,7 @@ export const emptyTemplateForm: TemplateFormValue = {
   break_minutes: "60",
   expected_hours: "8",
   allow_overtime: true,
+  working_days: [1, 2, 3, 4, 5, 6],
 };
 
 export function templateToForm(t: ShiftTemplate): TemplateFormValue {
@@ -44,6 +47,7 @@ export function templateToForm(t: ShiftTemplate): TemplateFormValue {
     break_minutes: String(t.break_minutes),
     expected_hours: t.expected_hours ?? "",
     allow_overtime: t.allow_overtime,
+    working_days: t.working_days?.length ? [...t.working_days] : [1, 2, 3, 4, 5, 6],
   };
 }
 
@@ -56,6 +60,7 @@ export function templateFormToBody(f: TemplateFormValue) {
     break_minutes: Number(f.break_minutes) || 0,
     expected_hours: f.expected_hours || undefined,
     allow_overtime: f.allow_overtime,
+    working_days: [...f.working_days].sort((a, b) => a - b),
   };
 }
 
@@ -250,7 +255,22 @@ export function TemplateForm({
         </div>
       </Card>
 
-      {/* Section 3: Rules */}
+      {/* Section 3: Working days */}
+      <Card>
+        <div className="space-y-4 p-6">
+          <SectionHead
+            icon={<ListChecks className="size-4" />}
+            title={t("shifts_page.section_working_days")}
+            hint={t("shifts_page.section_working_days_hint")}
+          />
+          <WorkingDaysPicker
+            selected={value.working_days}
+            onChange={(next) => set("working_days", next)}
+          />
+        </div>
+      </Card>
+
+      {/* Section 4: Rules */}
       <Card>
         <div className="space-y-3 p-6">
           <SectionHead
@@ -314,6 +334,78 @@ function SectionHead({
         <h2 className="text-sm font-semibold text-slate-700">{title}</h2>
         {hint && <p className="text-xs text-slate-500">{hint}</p>}
       </div>
+    </div>
+  );
+}
+
+const WEEKDAY_ISO = [1, 2, 3, 4, 5, 6, 7];
+
+function WorkingDaysPicker({
+  selected,
+  onChange,
+}: {
+  selected: number[];
+  onChange: (next: number[]) => void;
+}) {
+  const { t } = useTranslation();
+  const set = new Set(selected);
+  const toggle = (iso: number) => {
+    const next = new Set(set);
+    if (next.has(iso)) next.delete(iso);
+    else next.add(iso);
+    onChange([...next].sort((a, b) => a - b));
+  };
+  const preset = (days: number[]) => onChange([...days].sort((a, b) => a - b));
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-7 gap-2">
+        {WEEKDAY_ISO.map((iso) => {
+          const on = set.has(iso);
+          return (
+            <button
+              key={iso}
+              type="button"
+              onClick={() => toggle(iso)}
+              className={
+                on
+                  ? "rounded-lg border-2 border-brand-500 bg-brand-50 px-2 py-3 text-center text-xs font-bold text-brand-700 ring-2 ring-brand-200"
+                  : "rounded-lg border border-slate-200 bg-white px-2 py-3 text-center text-xs font-medium text-slate-600 hover:border-slate-300"
+              }
+            >
+              {t(`weekday_short.${iso}`)}
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => preset([1, 2, 3, 4, 5])}
+          className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] text-slate-600 hover:border-slate-300"
+        >
+          {t("shifts_page.preset_mon_fri")}
+        </button>
+        <button
+          type="button"
+          onClick={() => preset([1, 2, 3, 4, 5, 6])}
+          className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] text-slate-600 hover:border-slate-300"
+        >
+          {t("shifts_page.preset_mon_sat")}
+        </button>
+        <button
+          type="button"
+          onClick={() => preset([1, 2, 3, 4, 5, 6, 7])}
+          className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[11px] text-slate-600 hover:border-slate-300"
+        >
+          {t("shifts_page.preset_all_week")}
+        </button>
+      </div>
+      {set.size === 0 && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          {t("shifts_page.working_days_empty_warning")}
+        </div>
+      )}
     </div>
   );
 }

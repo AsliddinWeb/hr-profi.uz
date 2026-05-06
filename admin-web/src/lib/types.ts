@@ -873,6 +873,8 @@ export interface ShiftTemplate {
   expected_hours: string | null;
   allow_overtime: boolean;
   is_active: boolean;
+  /** ISO weekdays (1=Mon … 7=Sun) the template is in service on. */
+  working_days: number[];
 }
 
 export interface ShiftSchedule {

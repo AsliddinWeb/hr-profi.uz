@@ -522,6 +522,36 @@ async def process_face_match(
         AttendanceStatus.SUSPICIOUS if anomalies else AttendanceStatus.VALID
     )
 
+    # Late detection — only meaningful for CHECK_IN. Look up the day's
+    # planned shift; if the device-stamped timestamp is after the
+    # template's start_time, flag late_minutes.
+    is_late, late_minutes = False, 0
+    if check_type == CheckType.CHECK_IN:
+        from app.services.attendance_service import _scheduled_shift  # avoid cycle
+
+        _, tpl = await _scheduled_shift(db, employee.id, event.timestamp.date())
+        if tpl is None and employee.shift_template_id is not None:
+            # Fallback: schedule row missing for this day, but the
+            # employee has a default template — use its start_time so
+            # late detection still works for ad-hoc days.
+            from app.models.shift import ShiftTemplate
+
+            tpl = (
+                await db.execute(
+                    select(ShiftTemplate).where(
+                        ShiftTemplate.id == employee.shift_template_id
+                    )
+                )
+            ).scalar_one_or_none()
+        if tpl is not None and tpl.start_time is not None:
+            scheduled_dt = datetime.combine(
+                event.timestamp.date(), tpl.start_time, tzinfo=timezone.utc
+            )
+            diff = (event.timestamp - scheduled_dt).total_seconds() / 60
+            if diff > 0:
+                late_minutes = int(diff)
+                is_late = True
+
     rec = AttendanceRecord(
         company_id=device.company_id,
         employee_id=employee.id,
@@ -532,6 +562,8 @@ async def process_face_match(
         face_match_score=score if score else None,
         device_id=device.id,
         status=status_value,
+        is_late=is_late,
+        late_minutes=late_minutes,
         notes=", ".join(anomalies) if anomalies else None,
     )
     db.add(rec)

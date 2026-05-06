@@ -79,11 +79,25 @@ async def create_template(
     tenant: TenantId,
 ) -> ShiftTemplateRead:
     company_id = _company_id(user, tenant)
-    tpl = ShiftTemplate(company_id=company_id, **data.model_dump())
+    payload = data.model_dump()
+    # Validate working_days [1..7] uniqueness/range
+    payload["working_days"] = _normalize_working_days(payload.get("working_days"))
+    tpl = ShiftTemplate(company_id=company_id, **payload)
     db.add(tpl)
     await db.commit()
     await db.refresh(tpl)
     return ShiftTemplateRead.model_validate(tpl)
+
+
+def _normalize_working_days(value: list[int] | None) -> list[int]:
+    if value is None:
+        return [1, 2, 3, 4, 5, 6]
+    cleaned = sorted({int(v) for v in value})
+    if not cleaned or any(v < 1 or v > 7 for v in cleaned):
+        from app.core.exceptions import ValidationAppError
+
+        raise ValidationAppError("shift.working_days_invalid")
+    return cleaned
 
 
 async def _get_template(db, tpl_id: UUID) -> ShiftTemplate:
@@ -109,10 +123,28 @@ async def update_template(
 ) -> ShiftTemplateRead:
     _company_id(user, tenant)
     tpl = await _get_template(db, tpl_id)
-    for f, v in data.model_dump(exclude_unset=True).items():
+    diff = data.model_dump(exclude_unset=True)
+    if "working_days" in diff:
+        diff["working_days"] = _normalize_working_days(diff["working_days"])
+    days_changed = (
+        "working_days" in diff and list(diff["working_days"] or []) != list(tpl.working_days or [])
+    )
+    for f, v in diff.items():
         setattr(tpl, f, v)
     await db.commit()
     await db.refresh(tpl)
+
+    # Fan out: every employee on this template gets their schedule
+    # rewritten so the calendar lines up with the new pattern. Wrapped
+    # in its own try/except so a regen failure doesn't fail the PATCH.
+    if days_changed or "is_active" in diff:
+        from app.services.shift_service import regenerate_for_template
+
+        try:
+            await regenerate_for_template(db, tpl.id)
+            await db.commit()
+        except Exception:  # pragma: no cover — defensive
+            await db.rollback()
     return ShiftTemplateRead.model_validate(tpl)
 
 

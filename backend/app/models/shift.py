@@ -12,7 +12,7 @@ from datetime import date, time
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Date, ForeignKey, Integer, Numeric, String, Time, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Date, ForeignKey, Integer, Numeric, String, Time, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -55,6 +55,12 @@ class ShiftTemplate(Base, TenantMixin, TimestampMixin):
     expected_hours: Mapped[float | None] = mapped_column(Numeric(4, 2))
     allow_overtime: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # ISO weekdays the template is "in service" on (1=Mon … 7=Sun). When a
+    # template is attached to an employee, the schedule generator stamps
+    # PLANNED rows for these days and REST_DAY rows for the rest.
+    working_days: Mapped[list[int]] = mapped_column(
+        JSON, default=lambda: [1, 2, 3, 4, 5, 6], nullable=False
+    )
 
 
 class ShiftSchedule(Base, TenantMixin, TimestampMixin):

@@ -907,6 +907,12 @@
     "hub_subtitle": "Manage shift templates and the monthly schedule for employees.",
     "tab_schedule": "Schedule",
     "tab_templates": "Templates",
+    "section_working_days": "Working days",
+    "section_working_days_hint": "Pick which weekdays this template is in service. Selected = work day, the rest = rest day.",
+    "preset_mon_fri": "Mon-Fri (5 days)",
+    "preset_mon_sat": "Mon-Sat (6 days)",
+    "preset_all_week": "All week (7)",
+    "working_days_empty_warning": "At least one working day must be selected.",
 
     "add_template": "Add template",
     "template_name": "Template name",

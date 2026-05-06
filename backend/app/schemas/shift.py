@@ -13,6 +13,19 @@ from app.schemas.common import ORMBase
 
 # ---------- Templates ----------
 
+_DEFAULT_WORKING_DAYS = [1, 2, 3, 4, 5, 6]
+
+
+def _validate_working_days(value: list[int]) -> list[int]:
+    if not value:
+        raise ValueError("working_days_empty")
+    cleaned = sorted({int(v) for v in value})
+    for v in cleaned:
+        if v < 1 or v > 7:
+            raise ValueError("working_days_must_be_1_to_7")
+    return cleaned
+
+
 class ShiftTemplateCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     type: ShiftType = ShiftType.FIXED
@@ -21,6 +34,7 @@ class ShiftTemplateCreate(BaseModel):
     break_minutes: int = Field(default=60, ge=0, le=480)
     expected_hours: Decimal | None = Field(default=None, ge=0, le=24)
     allow_overtime: bool = True
+    working_days: list[int] = Field(default_factory=lambda: list(_DEFAULT_WORKING_DAYS))
 
 
 class ShiftTemplateUpdate(BaseModel):
@@ -32,6 +46,7 @@ class ShiftTemplateUpdate(BaseModel):
     expected_hours: Decimal | None = Field(default=None, ge=0, le=24)
     allow_overtime: bool | None = None
     is_active: bool | None = None
+    working_days: list[int] | None = None
 
 
 class ShiftTemplateRead(ORMBase):
@@ -45,6 +60,7 @@ class ShiftTemplateRead(ORMBase):
     expected_hours: Decimal | None
     allow_overtime: bool
     is_active: bool
+    working_days: list[int] = Field(default_factory=lambda: list(_DEFAULT_WORKING_DAYS))
     created_at: datetime
     updated_at: datetime
 

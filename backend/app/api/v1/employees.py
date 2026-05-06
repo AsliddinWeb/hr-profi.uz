@@ -334,11 +334,23 @@ async def update_employee(
     old_photo = emp.photo_url
     old_branch = emp.branch_id
     old_active = emp.is_active
+    old_template = emp.shift_template_id
 
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(emp, field, value)
     await db.commit()
     await db.refresh(emp)
+
+    # Schedule regen — fired when the template assignment changes so the
+    # calendar reflects the new weekly pattern immediately.
+    if emp.shift_template_id != old_template:
+        from app.services.shift_service import regenerate_employee_schedule
+
+        try:
+            await regenerate_employee_schedule(db, employee_id=emp.id)
+            await db.commit()
+        except Exception:  # pragma: no cover — defensive
+            await db.rollback()
 
     # Decide what (if anything) to enqueue.
     try:
