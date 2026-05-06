@@ -78,7 +78,20 @@ export function LiveTab() {
     const q = query.trim().toLowerCase();
     return rows.filter((r) => {
       if (branchFilter !== "all" && r.branch_id !== branchFilter) return false;
-      if (statusFilter !== "all" && r.shift_status !== statusFilter) return false;
+      if (statusFilter !== "all") {
+        // The "IN_PROGRESS" chip means "currently inside the building",
+        // not literally ``shift_status === IN_PROGRESS``. A late employee
+        // who's still on the floor lands in shift_status=LATE but is also
+        // currently in — the operator clicking the green "Hozir
+        // ishlamoqda 4" pill expects to see those four cards. Match the
+        // counter (``r.is_currently_in``) so chip count and chip click
+        // are consistent.
+        if (statusFilter === "IN_PROGRESS") {
+          if (!r.is_currently_in) return false;
+        } else if (r.shift_status !== statusFilter) {
+          return false;
+        }
+      }
       if (
         q &&
         !r.full_name.toLowerCase().includes(q) &&
