@@ -238,24 +238,36 @@ export function SchedulePanel() {
     setEdits({});
   };
 
-  /** Mon-Fri = template, Sat-Sun = REST, for ONE employee in the visible
-   * month. Skips days that already have a server-confirmed value (so the admin
-   * doesn't accidentally reset hand-tuned entries). */
+  /** Apply the employee's default shift template across the visible month —
+   * filling working days from the template's ``working_days`` (ISO 1..7)
+   * with the template, and the rest with REST_DAY.
+   *
+   * Skips days the user already touched in this edit session so we don't
+   * stomp on in-flight tweaks. Falls back to Mon-Fri working / Sat-Sun
+   * rest if the template wasn't loaded for some reason.
+   */
   const applyDefaultRow = (empId: string) => {
     const tplId = employees.find((e) => e.id === empId)?.shift_template_id;
     if (!tplId) {
       window.alert(t("shifts_page.row_default_missing") || "No default template set on employee");
       return;
     }
+    const tpl = templates.find((tp) => tp.id === tplId);
+    const workingSet = new Set(
+      tpl?.working_days && tpl.working_days.length
+        ? tpl.working_days
+        : [1, 2, 3, 4, 5]
+    );
     const next = { ...edits };
     for (let d = 1; d <= days; d++) {
       const dateStr = dateStrFor(year, month, d);
       const key = `${empId}|${dateStr}`;
-      // Only fill cells the user hasn't manually set this session.
       if (next[key] !== undefined) continue;
+      // ``getDay()`` returns 0..6 with Sunday = 0; convert to ISO 1..7
+      // (Monday=1 … Sunday=7) to match the template's working_days.
       const dow = new Date(year, month - 1, d).getDay();
-      const isWeekend = dow === 0 || dow === 6;
-      next[key] = isWeekend ? REST : tplId;
+      const iso = dow === 0 ? 7 : dow;
+      next[key] = workingSet.has(iso) ? tplId : REST;
     }
     setEdits(next);
   };
