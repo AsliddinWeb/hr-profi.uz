@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 
 import { api, apiErrorMessage } from "@/lib/api";
+import { translateNotification } from "@/lib/notifications-i18n";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -459,67 +460,5 @@ function Chip({
   );
 }
 
-/**
- * Localise an in-app notification.
- *
- * Two layers of resolution:
- * 1. Modern path — backend stored ``title_key`` / ``body_key`` +
- *    ``t_args`` in the payload. Direct i18n lookup.
- * 2. Legacy path — older rows hold an English string and no keys. We
- *    pattern-match the most common backend templates ("Out-of-geofence
- *    check-in", "Device offline: X", "New leave request: X") and
- *    translate them. Anything we don't recognise falls through to the
- *    stored text unchanged so we never lose information.
- */
-function translateNotification(
-  t: (k: string, args?: Record<string, unknown>) => string,
-  fallback: string | null | undefined,
-  payload: Record<string, unknown> | null | undefined,
-  field: "title" | "body"
-): string {
-  const key = payload?.[`${field}_key`];
-  if (typeof key === "string" && key) {
-    const args = (payload?.t_args as Record<string, unknown>) || {};
-    const translated = t(key, args);
-    if (translated !== key) return translated;
-  }
-  return matchLegacyPattern(t, fallback || "", field) || fallback || "";
-}
-
-/** Best-effort English-pattern → translated-string. Returns ``null``
- * when no pattern matched so the caller knows to show the original. */
-function matchLegacyPattern(
-  t: (k: string, args?: Record<string, unknown>) => string,
-  raw: string,
-  field: "title" | "body"
-): string | null {
-  if (!raw) return null;
-
-  if (field === "title") {
-    if (raw === "Out-of-geofence check-in") {
-      // Body of these alerts has the employee name; without it we render
-      // the title with an empty placeholder which still reads better
-      // than the original English.
-      return t("anomaly.geofence_in.title");
-    }
-    if (raw === "Out-of-geofence check-out") return t("anomaly.geofence_out.title");
-
-    let m = /^Device offline:\s*(.+)$/.exec(raw);
-    if (m) return t("anomaly.device_offline.title", { name: m[1] });
-
-    m = /^New leave request:\s*(.+)$/.exec(raw);
-    if (m) return t("leave.new_request.title", { name: m[1] });
-  }
-
-  if (field === "body") {
-    let m = /^(.+?) checked in outside the branch radius\.?$/.exec(raw);
-    if (m) return t("anomaly.geofence_in.body", { name: m[1] });
-
-    m = /^(.+?) checked out outside the branch radius\.?$/.exec(raw);
-    if (m) return t("anomaly.geofence_out.body", { name: m[1] });
-
-    m = /^Last seen at\s*(.+)$/.exec(raw);
-    if (m) return t("anomaly.device_offline.body", { last_seen: m[1] });
-  }
-  return null;
-}
+// Translation logic moved to ``@/lib/notifications-i18n`` so the bell
+// dropdown and the full page render the same string for the same row.

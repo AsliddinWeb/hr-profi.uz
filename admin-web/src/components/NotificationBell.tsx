@@ -6,6 +6,7 @@ import { Bell, CheckCheck, AlertTriangle, Cpu, Calendar, Coins, Trophy, Info, Li
 import { adminWS } from "@/lib/ws";
 import { useAuthStore } from "@/stores/auth";
 import { useNotificationsStore } from "@/stores/notifications";
+import { translateNotification } from "@/lib/notifications-i18n";
 import type { NotificationCategory } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
@@ -143,12 +144,14 @@ export function NotificationBell() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <p className={cn("truncate text-sm text-ink-900", !n.is_read && "font-semibold")}>
-                          {n.title}
+                          {translateNotification(t, n.title, n.payload, "title")}
                         </p>
                         <span className="shrink-0 text-xs text-ink-400">{timeAgo(n.created_at)}</span>
                       </div>
-                      {n.body && (
-                        <p className="mt-0.5 line-clamp-2 text-xs text-ink-500">{n.body}</p>
+                      {(n.body || typeof (n.payload as Record<string, unknown> | null)?.body_key === "string") && (
+                        <p className="mt-0.5 line-clamp-2 text-xs text-ink-500">
+                          {translateNotification(t, n.body, n.payload, "body")}
+                        </p>
                       )}
                     </div>
                   </button>
