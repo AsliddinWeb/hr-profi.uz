@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, status
@@ -336,24 +337,69 @@ async def list_logs(
 async def webhook_event(request: Request, db: DbDep) -> dict:
     """Vendor-neutral webhook entrypoint.
 
-    Authenticated via three headers:
-    - X-WTP-Device     device serial number
-    - X-WTP-Key        plaintext api_key returned at registration
-    - X-WTP-Signature  HMAC-SHA256(body, api_key) hex digest
+    Auth: either signed headers (X-WTP-Device + X-WTP-Key + X-WTP-Signature)
+    or ``?key=<api_key>`` query string for legacy terminals — see
+    ``authenticate_webhook``.
 
-    Body is JSON. The right vendor adapter is selected from
-    ``device.vendor`` and normalises the payload into a ``DeviceEvent``.
+    Body format depends on vendor and firmware:
+      - Pure JSON ``application/json`` (newer Hik firmware, ZKTeco PUSH)
+      - Multipart ``multipart/form-data`` with a JSON part + jpeg image
+        (older Hikvision face terminals — DS-K1T343 V3.3.x and friends)
+      - XML (very old Hikvision firmware) — TODO
+
+    We try each in turn so the same endpoint serves every device kind.
 
     Idempotency: when the vendor surfaces an ``event_external_id`` (Hikvision
     serialNo, Dahua EventID, etc.) and we've already processed it, we return
     the cached attendance id without creating a duplicate row.
     """
+    import json as _json
+    import logging
+
     body = await request.body()
     device = await device_service.authenticate_webhook(db, request, body)
 
-    try:
-        raw = await request.json()
-    except Exception:  # noqa: BLE001
+    content_type = request.headers.get("content-type", "")
+    raw: dict[str, Any] | None = None
+
+    # 1) Pure JSON
+    if "application/json" in content_type or content_type == "":
+        try:
+            raw = _json.loads(body or b"{}")
+        except Exception:  # noqa: BLE001
+            raw = None
+
+    # 2) Multipart — Hikvision DS-K1T343 sends event JSON as one part
+    #    (typically named ``event_log``) plus channel images as other parts.
+    if raw is None and "multipart/form-data" in content_type:
+        try:
+            form = await request.form()
+            for key, val in form.multi_items():
+                # First text-like part that parses as JSON wins.
+                if hasattr(val, "filename") and val.filename:
+                    continue  # skip image attachments
+                text = val if isinstance(val, str) else val.decode(  # type: ignore[union-attr]
+                    "utf-8", errors="ignore"
+                )
+                try:
+                    candidate = _json.loads(text)
+                    if isinstance(candidate, dict):
+                        raw = candidate
+                        break
+                except Exception:  # noqa: BLE001
+                    continue
+        except Exception:  # noqa: BLE001
+            pass
+
+    if raw is None:
+        # Last-ditch: log a sample so admins can see what the device emits
+        # when it doesn't fit either JSON or multipart-with-JSON.
+        logging.getLogger(__name__).warning(
+            "webhook unparsable body: device=%s content_type=%r body[:300]=%r",
+            device.id,
+            content_type,
+            body[:300],
+        )
         raise ValidationAppError("device.bad_json") from None
 
     event = device_service.parse_event(device, raw)
