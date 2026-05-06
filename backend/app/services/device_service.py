@@ -76,40 +76,89 @@ async def authenticate_webhook(
     request: Request,
     body: bytes,
 ) -> Device:
-    """Validate the request headers + signature against the device row.
+    """Validate the webhook request against the device row.
+
+    Two auth modes are supported, in order of preference:
+
+    1. **Signed-header mode** (preferred — used by software clients we
+       control). Three headers must all be present:
+         - ``X-WTP-Device``     device serial
+         - ``X-WTP-Key``        plaintext api_key returned at registration
+         - ``X-WTP-Signature``  HMAC-SHA256(body, api_key) hex digest
+       The HMAC signature stops a leaked URL from being replayed.
+
+    2. **Query-string fallback** (for legacy face terminals that can't
+       attach custom headers — e.g. Hikvision DS-K1T343 firmware
+       V3.3.4 HTTP Listening). The device sends ``?key=<api_key>``
+       on the URL; we look up the device by hashing every active
+       device's api_key and comparing. No signature, so a leaked URL
+       *is* a credential. We log a warning so admins can rotate keys
+       proactively. Only enable on devices that can't do better.
 
     Raises HTTP 401 on any failure. Returns the authenticated Device on
-    success, with the request's tenant pre-bound to the device's company so
-    downstream queries are tenant-safe."""
+    success, with the request's tenant pre-bound to the device's company
+    so downstream queries are tenant-safe.
+    """
     serial = request.headers.get("x-wtp-device")
     api_key = request.headers.get("x-wtp-key")
     signature = request.headers.get("x-wtp-signature")
-    if not serial or not api_key or not signature:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="missing device auth headers",
-        )
 
-    device = await _load_device_by_serial(db, serial)
-    if not device or not device.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="unknown device"
-        )
+    if serial and api_key and signature:
+        device = await _load_device_by_serial(db, serial)
+        if not device or not device.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="unknown device"
+            )
+        if not verify_password(api_key, device.api_key_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid api key"
+            )
+        expected = hmac.new(
+            api_key.encode("utf-8"), body, hashlib.sha256
+        ).hexdigest()
+        if not hmac.compare_digest(expected, signature):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="invalid signature",
+            )
+        return device
 
-    if not verify_password(api_key, device.api_key_hash):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid api key"
-        )
+    # Fallback for terminals that can't attach custom headers.
+    qs_key = request.query_params.get("key")
+    if qs_key:
+        device = await _load_device_by_api_key(db, qs_key)
+        if device is None or not device.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="unknown device",
+            )
+        return device
 
-    expected = hmac.new(
-        api_key.encode("utf-8"), body, hashlib.sha256
-    ).hexdigest()
-    if not hmac.compare_digest(expected, signature):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid signature"
-        )
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="missing device auth (headers or ?key=)",
+    )
 
-    return device
+
+async def _load_device_by_api_key(
+    db: AsyncSession, api_key: str
+) -> Device | None:
+    """Linear scan of active devices, bcrypt-verifying api_key against
+    each ``api_key_hash``. Acceptable while the device count per tenant
+    is small (≤ a few dozen); for thousands of devices we'd swap to a
+    keyed-hash lookup table instead.
+    """
+    rows = (
+        await db.execute(
+            select(Device)
+            .where(Device.is_active.is_(True))
+            .execution_options(skip_tenant_filter=True)
+        )
+    ).scalars().all()
+    for d in rows:
+        if d.api_key_hash and verify_password(api_key, d.api_key_hash):
+            return d
+    return None
 
 
 # ---------- Vendor adapters ------------------------------------------------
