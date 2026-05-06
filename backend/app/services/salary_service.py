@@ -57,9 +57,18 @@ async def _hours_for_day(
 ) -> tuple[Decimal, Decimal]:
     """Return ``(hours_worked, overtime_hours)`` derived from VALID rows.
 
-    We pair check-ins with check-outs in chronological order. Unmatched
-    check-ins are ignored (no implicit close-out — admin handles those via
-    /attendance/manual)."""
+    Strategy:
+      - Pair CHECK_IN with the next CHECK_OUT and count the gap.
+      - Trailing unpaired CHECK_IN — common when the device's CHECK_OUT
+        was REJECTED (out-of-geofence) or the employee is still inside —
+        is closed virtually:
+          • for *today*, run from CHECK_IN to NOW so the employee accrues
+            base pay live as the shift progresses.
+          • for *past days*, close at the assigned shift template's
+            end_time, or 23:59 of the day if no template is set. This
+            stops a forgotten check-out from forfeiting an entire day's
+            pay; admins can still amend via /attendance/manual.
+    """
     start, end = _day_bounds_utc(day)
     rows = (
         await db.execute(
@@ -86,6 +95,42 @@ async def _hours_for_day(
                 minutes_worked += int(delta)
             overtime_minutes += r.overtime_minutes
             pending_in = None
+
+    if pending_in is not None:
+        # Determine a virtual close-out time.
+        now = datetime.now(timezone.utc)
+        is_today = day == now.date()
+        if is_today:
+            close_at = now
+        else:
+            # Past day — fall back to the assigned shift template's end_time
+            # if available; otherwise cap at end of day.
+            close_at = end
+            from app.models.employee import Employee
+            from app.models.shift import ShiftTemplate
+
+            employee = (
+                await db.execute(
+                    select(Employee)
+                    .where(Employee.id == employee_id)
+                    .execution_options(skip_tenant_filter=True)
+                )
+            ).scalar_one_or_none()
+            if employee and employee.shift_template_id:
+                tpl = (
+                    await db.execute(
+                        select(ShiftTemplate).where(
+                            ShiftTemplate.id == employee.shift_template_id
+                        )
+                    )
+                ).scalar_one_or_none()
+                if tpl and tpl.end_time:
+                    close_at = datetime.combine(
+                        day, tpl.end_time, tzinfo=timezone.utc
+                    )
+        delta = (close_at - pending_in.timestamp).total_seconds() / 60
+        if delta > 0:
+            minutes_worked += int(delta)
 
     hours = Decimal(minutes_worked) / Decimal(60)
     ot = Decimal(overtime_minutes) / Decimal(60)
