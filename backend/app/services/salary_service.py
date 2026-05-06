@@ -350,6 +350,20 @@ async def _autogenerate_absence_deduction(
     for DAILY; hourly_rate × expected_hours for HOURLY). KPI_BASED employees
     are skipped — they have no base to deduct from.
     """
+    # Always wipe any prior auto-generated ABSENCE row for the day FIRST.
+    # That way every "skip" branch below also acts as a clean-up — re-running
+    # the recompute after fixing the gating logic (hire_date, template
+    # working_days, schedule overrides) actually undoes stale penalties
+    # instead of just preserving them.
+    await db.execute(
+        Deduction.__table__.delete().where(
+            Deduction.employee_id == employee.id,
+            Deduction.applied_date == day,
+            Deduction.type == DeductionType.ABSENCE.value,
+            Deduction.auto_generated.is_(True),
+        )
+    )
+
     today = datetime.now(timezone.utc).date()
     if day >= today:
         return
@@ -422,16 +436,6 @@ async def _autogenerate_absence_deduction(
     if amount <= 0:
         return
 
-    # Replace any prior auto-ABSENCE row for this day so re-running the
-    # recompute doesn't pile up duplicates.
-    await db.execute(
-        Deduction.__table__.delete().where(
-            Deduction.employee_id == employee.id,
-            Deduction.applied_date == day,
-            Deduction.type == DeductionType.ABSENCE.value,
-            Deduction.auto_generated.is_(True),
-        )
-    )
     db.add(
         Deduction(
             company_id=employee.company_id,
@@ -450,7 +454,24 @@ async def _autogenerate_late_deduction(
     db: AsyncSession, employee: Employee, day: Date
 ) -> None:
     """Insert/refresh an auto-deduction for late minutes on this day, if the
-    company's ``late_penalty_per_min`` is set."""
+    company's ``late_penalty_per_min`` is set.
+
+    The wipe-first / insert-second pattern (same as the absence helper) means
+    re-running the recompute after the operator turns the penalty off, lowers
+    the per-minute rate, or reclassifies a record as REJECTED actually
+    cleans up the old row instead of stranding it on the period.
+    """
+    # Wipe any prior auto-LATE row up front so the rest of the function can
+    # short-circuit freely.
+    await db.execute(
+        Deduction.__table__.delete().where(
+            Deduction.employee_id == employee.id,
+            Deduction.applied_date == day,
+            Deduction.type == DeductionType.LATE.value,
+            Deduction.auto_generated.is_(True),
+        )
+    )
+
     company = (
         await db.execute(
             select(Company)
@@ -478,16 +499,6 @@ async def _autogenerate_late_deduction(
         return
 
     amount = (penalty_per_min * Decimal(int(late_total))).quantize(Decimal("0.01"))
-    # Replace previous auto-LATE row for this day so re-running the recompute
-    # doesn't pile up duplicates.
-    await db.execute(
-        Deduction.__table__.delete().where(
-            Deduction.employee_id == employee.id,
-            Deduction.applied_date == day,
-            Deduction.type == DeductionType.LATE.value,
-            Deduction.auto_generated.is_(True),
-        )
-    )
     db.add(
         Deduction(
             company_id=employee.company_id,
