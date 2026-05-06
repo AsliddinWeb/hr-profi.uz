@@ -129,7 +129,14 @@ async def _deductions_for_day(
 
 
 def _base_earned_for_day(employee: Employee, hours: Decimal) -> Decimal:
-    """Pro-rated daily base, depending on salary_type."""
+    """Pro-rated daily base, depending on salary_type.
+
+    For MONTHLY employees, base is proportional to hours actually worked
+    against the expected 8-hour day (i.e. ``monthly / 22 / 8 * hours``).
+    A full-shift presence pays the full daily base; a 10-minute appearance
+    pays ~10/480 of it. Hours above 8 cap at 8 — the surplus rolls into
+    ``overtime_hours`` upstream and earns the OT multiplier separately.
+    """
     if employee.salary_type == SalaryType.HOURLY:
         rate = employee.hourly_rate or Decimal(0)
         return (rate * hours).quantize(Decimal("0.01"))
@@ -141,13 +148,15 @@ def _base_earned_for_day(employee: Employee, hours: Decimal) -> Decimal:
         return rate.quantize(Decimal("0.01")) if hours > 0 else Decimal("0.00")
 
     if employee.salary_type == SalaryType.MONTHLY:
-        # Spread monthly base across ~22 working days. Configurable via
-        # company.settings.working_days_per_month later if needed.
         monthly = employee.base_salary or Decimal(0)
         if hours <= 0 or monthly <= 0:
             return Decimal("0.00")
-        per_day = monthly / Decimal(22)
-        return per_day.quantize(Decimal("0.01"))
+        expected_daily = Decimal("8.00")
+        # Cap to a full day so overtime hours don't double-pay through the
+        # base (they'll come back in via _overtime_earned at OT multiplier).
+        billable = hours if hours <= expected_daily else expected_daily
+        per_hour = monthly / Decimal(22) / expected_daily
+        return (per_hour * billable).quantize(Decimal("0.01"))
 
     # KPI_BASED: no base accrual; reward comes purely from KPI bonuses.
     return Decimal("0.00")
