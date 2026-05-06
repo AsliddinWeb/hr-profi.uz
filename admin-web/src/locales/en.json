@@ -913,6 +913,10 @@
     "preset_mon_sat": "Mon-Sat (6 days)",
     "preset_all_week": "All week (7)",
     "working_days_empty_warning": "At least one working day must be selected.",
+    "apply_all": "Apply to all",
+    "apply_all_hint": "Fill in and save the visible month's schedule for every visible employee, based on their default template.",
+    "apply_all_confirm": "Fill the visible month's schedule for {{count}} employees from their default template and save?",
+    "apply_all_skipped": "These employees have no default template and were skipped: {{names}}",
 
     "add_template": "Add template",
     "template_name": "Template name",

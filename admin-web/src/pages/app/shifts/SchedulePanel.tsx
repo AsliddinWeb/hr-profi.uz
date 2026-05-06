@@ -282,6 +282,86 @@ export function SchedulePanel() {
     setEdits(next);
   };
 
+  /** Mass version of ``applyDefaultRow``: fill the visible month for every
+   * employee in the current filter view. Each employee's own default
+   * template is used, so the result is identical to clicking "Reset to
+   * default" on every row in turn. Auto-saves once at the end. */
+  const applyDefaultAll = async () => {
+    if (employees.length === 0) return;
+    const ok = window.confirm(
+      t("shifts_page.apply_all_confirm", { count: employees.length }) ||
+        `Apply each employee's default template across the visible month? (${employees.length} employees)`
+    );
+    if (!ok) return;
+
+    const next = { ...edits };
+    const skipped: string[] = [];
+    for (const emp of employees) {
+      const tplId = emp.shift_template_id;
+      if (!tplId) {
+        skipped.push(emp.full_name);
+        continue;
+      }
+      const tpl = templates.find((tp) => tp.id === tplId);
+      const workingSet = new Set(
+        tpl?.working_days && tpl.working_days.length
+          ? tpl.working_days
+          : [1, 2, 3, 4, 5]
+      );
+      for (let d = 1; d <= days; d++) {
+        const dateStr = dateStrFor(year, month, d);
+        const key = `${emp.id}|${dateStr}`;
+        if (next[key] !== undefined) continue;
+        const dow = new Date(year, month - 1, d).getDay();
+        const iso = dow === 0 ? 7 : dow;
+        next[key] = workingSet.has(iso) ? tplId : REST;
+      }
+    }
+
+    setEdits(next);
+
+    // Auto-save: convert ``next`` to entries directly so we don't race
+    // React's state update vs the mutation closure.
+    try {
+      const entries = Object.entries(next).map(([key, value]) => {
+        const [employee_id, date] = key.split("|");
+        if (value === "")
+          return {
+            employee_id,
+            date,
+            shift_template_id: null,
+            status: "CANCELLED" as ScheduleStatus,
+          };
+        if (value === REST)
+          return {
+            employee_id,
+            date,
+            shift_template_id: null,
+            status: "REST_DAY" as ScheduleStatus,
+          };
+        return {
+          employee_id,
+          date,
+          shift_template_id: value,
+          status: "PLANNED" as ScheduleStatus,
+        };
+      });
+      await api.post("/shifts/schedule", { entries });
+      await qc.invalidateQueries({ queryKey: ["shifts", "schedule"] });
+      await qc.refetchQueries({ queryKey: ["shifts", "schedule", fromIso, toIso] });
+      setEdits({});
+      setSaveFlash(true);
+      if (skipped.length > 0) {
+        window.alert(
+          t("shifts_page.apply_all_skipped", { names: skipped.join(", ") }) ||
+            `Skipped (no default template): ${skipped.join(", ")}`
+        );
+      }
+    } catch (err) {
+      window.alert(apiErrorMessage(err));
+    }
+  };
+
   const clearRow = async (empId: string) => {
     // Persist directly. Going through saveScheduleMut would lose state
     // race-y'ness — the mutation fn closes over ``edits``, and the new
@@ -425,6 +505,17 @@ export function SchedulePanel() {
               {t("employees.schedule_saved")}
             </span>
           )}
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={employees.length === 0 || saveScheduleMut.isPending}
+            onClick={() => void applyDefaultAll()}
+            title={t("shifts_page.apply_all_hint") ?? undefined}
+          >
+            <Wand2 className="size-4" />
+            {t("shifts_page.apply_all")}
+            {employees.length > 0 && ` (${employees.length})`}
+          </Button>
           <Button
             type="button"
             variant="success"

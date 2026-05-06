@@ -914,6 +914,10 @@
     "preset_mon_sat": "Du-Sh (6 kun)",
     "preset_all_week": "Hafta davomida (7)",
     "working_days_empty_warning": "Kamida 1 ta ish kuni tanlanishi kerak.",
+    "apply_all": "Hammasiga qo'llash",
+    "apply_all_hint": "Ko'rinib turgan barcha xodimlarga ularning shabloni bo'yicha bu oyni avtomatik to'ldirish va saqlash.",
+    "apply_all_confirm": "{{count}} ta xodim uchun bu oydagi smenalarni shablonga qarab to'ldirib, saqlamoqchimisiz?",
+    "apply_all_skipped": "Quyidagi xodimlarda standart shablon biriktirilmagan, ular o'tkazib yuborildi: {{names}}",
 
     "add_template": "Shablon qo'shish",
     "template_name": "Shablon nomi",
