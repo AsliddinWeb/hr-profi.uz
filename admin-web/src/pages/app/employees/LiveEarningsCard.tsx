@@ -59,10 +59,17 @@ interface TodayBreakdown {
 }
 
 function summariseToday(records: AttendanceRecord[]): TodayBreakdown {
-  // Records arrive sorted desc by timestamp from the API; sort ascending here.
-  const asc = [...records].sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-  );
+  // Records arrive sorted desc by timestamp from the API; sort ascending
+  // here AND drop REJECTED rows so the live "Bugungi tushum" matches what
+  // the salary engine writes to the period — otherwise a rejected
+  // CHECK_OUT (geofence violation, admin override) would close the open
+  // segment client-side and shrink the visible amount, while the server
+  // keeps the segment open and pays for the full window.
+  const asc = [...records]
+    .filter((r) => r.status !== "REJECTED")
+    .sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
   let closedMs = 0;
   let openSinceMs: number | null = null;
   for (const r of asc) {
