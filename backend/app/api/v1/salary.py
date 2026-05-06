@@ -797,7 +797,10 @@ async def dashboard_summary(
         kpi_total,
         overtime_total,
         emp_count,
-    ) = (Decimal(t) for t in period_totals[:6]) + (int(period_totals[6]),)
+    ) = (
+        *[Decimal(t) for t in period_totals[:6]],
+        int(period_totals[6]),
+    )
     pending = (total_earned - total_paid).quantize(Decimal("0.01"))
 
     # Status breakdown.
