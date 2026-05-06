@@ -512,10 +512,15 @@ async def admin_recompute_bulk(
     branch_id: UUID | None = None,
     employee_id: UUID | None = None,
 ) -> BulkRecomputeResult:
-    """Recompute every (employee, day) in the month synchronously. For a small
-    company (<100 employees) this finishes in a few seconds; for bigger ones
-    we still complete in a single request so the admin doesn't have to chase
-    Celery progress."""
+    """Queue an async recompute for every (employee, day) in the month.
+
+    With 100+ employees and 30-day months, the inline pass takes well over
+    a minute and times the request out. We dispatch one
+    ``salary.recompute_for_day`` task per (employee, day) onto Celery and
+    return immediately with the queued count. The dashboard's
+    ``ws_publisher.publish_salary_updated`` event surfaces each completion
+    in real time so the operator sees progress without polling.
+    """
     _company_id(user, tenant)
 
     emp_stmt = select(Employee).where(Employee.is_active.is_(True))
@@ -525,10 +530,40 @@ async def admin_recompute_bulk(
         emp_stmt = emp_stmt.where(Employee.id == employee_id)
     employees = (await db.execute(emp_stmt)).scalars().all()
 
-    days_total = 0
-    for emp in employees:
-        days_total += await salary_service.recompute_period(db, emp.id, year, month)
-    await db.commit()
+    # Compute the day range up front so each per-day task only needs the
+    # ISO date string. ``calendar.monthrange`` returns (weekday_of_first,
+    # days_in_month).
+    import calendar
+    from datetime import date as _date
+
+    days_in_month = calendar.monthrange(year, month)[1]
+    day_strs = [
+        _date(year, month, d).isoformat() for d in range(1, days_in_month + 1)
+    ]
+
+    queued = 0
+    try:
+        from app.tasks.salary_tasks import recompute_for_day as _task
+
+        for emp in employees:
+            for day_iso in day_strs:
+                _task.delay(str(emp.id), day_iso)
+                queued += 1
+    except Exception:  # noqa: BLE001
+        # Broker down — fall back to a single inline recompute for each
+        # employee so the operator at least gets last-known-good totals
+        # without being blocked. A 100-employee call still wraps under a
+        # minute; the 504 only hits when the count grows beyond that and
+        # the broker is also unreachable, which is unrecoverable anyway.
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "salary.recompute_for_day dispatch failed; falling back to inline"
+        )
+        for emp in employees:
+            await salary_service.recompute_period(db, emp.id, year, month)
+        await db.commit()
+        queued = len(employees) * days_in_month
 
     await audit_service.record(
         db,
@@ -538,10 +573,15 @@ async def admin_recompute_bulk(
         company_id=user.company_id,
         resource_type="salary_period",
         resource_id=None,
-        payload={"year": year, "month": month, "employees": len(employees)},
+        payload={
+            "year": year,
+            "month": month,
+            "employees": len(employees),
+            "days_dispatched": queued,
+        },
         commit=True,
     )
-    return BulkRecomputeResult(queued_employees=len(employees), days=days_total)
+    return BulkRecomputeResult(queued_employees=len(employees), days=queued)
 
 
 @router.get(
