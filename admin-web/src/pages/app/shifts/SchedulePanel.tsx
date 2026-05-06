@@ -182,25 +182,35 @@ export function SchedulePanel() {
   // ---- Mutation -------------------------------------------------------
   const saveScheduleMut = useMutation({
     mutationFn: async () => {
-      const entries = Object.entries(edits)
-        .filter(([, value]) => value !== "")
-        .map(([key, value]) => {
-          const [employee_id, date] = key.split("|");
-          if (value === REST) {
-            return {
-              employee_id,
-              date,
-              shift_template_id: null,
-              status: "REST_DAY" as ScheduleStatus,
-            };
-          }
+      // Empty-string cells = "user explicitly cleared this day". We
+      // persist them as CANCELLED so the auto-regen step (which only
+      // rewrites PLANNED/REST_DAY) leaves them alone — otherwise the
+      // schedule would silently come back on the next template PATCH.
+      const entries = Object.entries(edits).map(([key, value]) => {
+        const [employee_id, date] = key.split("|");
+        if (value === "") {
           return {
             employee_id,
             date,
-            shift_template_id: value,
-            status: "PLANNED" as ScheduleStatus,
+            shift_template_id: null,
+            status: "CANCELLED" as ScheduleStatus,
           };
-        });
+        }
+        if (value === REST) {
+          return {
+            employee_id,
+            date,
+            shift_template_id: null,
+            status: "REST_DAY" as ScheduleStatus,
+          };
+        }
+        return {
+          employee_id,
+          date,
+          shift_template_id: value,
+          status: "PLANNED" as ScheduleStatus,
+        };
+      });
       if (entries.length === 0) return { created: 0, updated: 0 };
       return (
         await api.post<{ created: number; updated: number }>("/shifts/schedule", {
@@ -272,13 +282,41 @@ export function SchedulePanel() {
     setEdits(next);
   };
 
-  const clearRow = (empId: string) => {
-    const next = { ...edits };
-    for (let d = 1; d <= days; d++) {
-      const dateStr = dateStrFor(year, month, d);
-      next[`${empId}|${dateStr}`] = "";
+  const clearRow = async (empId: string) => {
+    // Persist directly. Going through saveScheduleMut would lose state
+    // race-y'ness — the mutation fn closes over ``edits``, and the new
+    // empty values aren't visible to it on the same tick. We just send
+    // the cancelled entries straight to the API.
+    const dates: string[] = [];
+    for (let d = 1; d <= days; d++) dates.push(dateStrFor(year, month, d));
+
+    setEdits((prev) => {
+      const next = { ...prev };
+      for (const date of dates) next[`${empId}|${date}`] = "";
+      return next;
+    });
+
+    try {
+      await api.post("/shifts/schedule", {
+        entries: dates.map((date) => ({
+          employee_id: empId,
+          date,
+          shift_template_id: null,
+          status: "CANCELLED" as ScheduleStatus,
+        })),
+      });
+      await qc.invalidateQueries({ queryKey: ["shifts", "schedule"] });
+      await qc.refetchQueries({ queryKey: ["shifts", "schedule", fromIso, toIso] });
+      // Clear local edits for this employee since server now agrees.
+      setEdits((prev) => {
+        const next = { ...prev };
+        for (const date of dates) delete next[`${empId}|${date}`];
+        return next;
+      });
+      setSaveFlash(true);
+    } catch (err) {
+      window.alert(apiErrorMessage(err));
     }
-    setEdits(next);
   };
 
   /** Fill an entire DAY column for visible employees. Used for company-wide
