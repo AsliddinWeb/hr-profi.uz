@@ -1,0 +1,69 @@
+{
+  "app": {
+    "name": "Hr-Profi Kiosk"
+  },
+  "login": {
+    "title": "Вход в киоск",
+    "subtitle": "Введите slug и пароль",
+    "slug_label": "Slug",
+    "slug_placeholder": "main-entrance",
+    "password_label": "Пароль",
+    "submit": "Войти",
+    "submitting": "Входим...",
+    "wrong_credentials": "Неверный slug или пароль",
+    "url_hint_title": "Slug из URL",
+    "url_hint_body": "Если адрес страницы вида `/<slug>`, поле заполнится автоматически."
+  },
+  "main": {
+    "search_placeholder": "Поиск по имени или коду...",
+    "checkin_title": "Приход",
+    "checkout_title": "Уход",
+    "checkin_hint": "Выберите себя при приходе",
+    "checkout_hint": "Выберите себя перед уходом",
+    "no_employees": "Сотрудники не найдены",
+    "currently_in": "На работе",
+    "currently_out": "Не на работе",
+    "tap_to_select": "Нажмите, чтобы выбрать",
+    "loading": "Загрузка...",
+    "footer_branch": "Филиал",
+    "footer_kiosk": "Киоск",
+    "logout": "Выйти",
+    "logout_confirm": "Точно выйти из киоска? Для повторного входа понадобится пароль.",
+    "phase4_hint": "Покажите лицо камере — распознается автоматически. Можно и вручную, если не получилось."
+  },
+  "confirm": {
+    "title_in": "Подтвердить приход",
+    "title_out": "Подтвердить уход",
+    "confirm_in": "Приход",
+    "confirm_out": "Уход",
+    "cancel": "Отмена",
+    "already_in": "Сотрудник уже на работе. Сначала отметьте уход.",
+    "already_out": "Сотрудник не на работе. Сначала отметьте приход."
+  },
+  "result": {
+    "success_in": "Приход отмечен!",
+    "success_out": "Уход отмечен!",
+    "late": "Опоздание: {{minutes}} мин",
+    "overtime": "Переработка: {{minutes}} мин",
+    "tap_anywhere": "Нажмите, чтобы закрыть"
+  },
+  "errors": {
+    "generic": "Произошла ошибка",
+    "method_disabled": "Этот канал отключён в настройках компании",
+    "already_checked_in": "Приход уже отмечен",
+    "no_active_check_in": "Сначала отметьте приход"
+  },
+  "offline": {
+    "title": "Нет связи",
+    "body": "Киоск не может связаться с сервером. Проверьте Wi-Fi."
+  },
+  "camera": {
+    "loading": "Подключение к камере...",
+    "live": "В эфире",
+    "denied": "Доступ к камере запрещён",
+    "missing": "Камера не найдена",
+    "error": "Ошибка камеры",
+    "fallback_hint": "Без камеры тоже работает — просто селфи не сохранится.",
+    "title": "Поместите лицо в рамку"
+  }
+}

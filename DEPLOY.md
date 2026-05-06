@@ -8,6 +8,7 @@ Server: DigitalOcean Ubuntu, host nginx 80/443'ni egallaydi va proxy qiladi.
 hr-profi.uz       → host nginx → 127.0.0.1:8103 → landing
 admin.hr-profi.uz → host nginx → 127.0.0.1:8101 → admin-web (nginx + SPA)
 my.hr-profi.uz    → host nginx → 127.0.0.1:8102 → client-web (Next.js)
+kiosk.hr-profi.uz → host nginx → 127.0.0.1:8104 → kiosk-web (nginx + SPA)
 api.hr-profi.uz   → host nginx → 127.0.0.1:8100 → FastAPI/Gunicorn
 files.hr-profi.uz → host nginx → 127.0.0.1:9100 → MinIO (S3)
 ```
@@ -89,7 +90,7 @@ curl -s http://127.0.0.1:8103/
 sudo cp /home/projects/hr-profi.uz/infra/nginx/*.conf /etc/nginx/sites-available/
 
 # Yoqamiz (symlink):
-for f in hr-profi.uz admin.hr-profi.uz my.hr-profi.uz api.hr-profi.uz files.hr-profi.uz; do
+for f in hr-profi.uz admin.hr-profi.uz my.hr-profi.uz kiosk.hr-profi.uz api.hr-profi.uz files.hr-profi.uz; do
   sudo ln -sf /etc/nginx/sites-available/$f.conf /etc/nginx/sites-enabled/$f.conf
 done
 
@@ -112,6 +113,7 @@ sudo certbot --nginx \
   -d hr-profi.uz -d www.hr-profi.uz \
   -d admin.hr-profi.uz \
   -d my.hr-profi.uz \
+  -d kiosk.hr-profi.uz \
   -d api.hr-profi.uz \
   -d files.hr-profi.uz \
   --email admin@hr-profi.uz --agree-tos --redirect --no-eff-email
@@ -136,6 +138,31 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api \
 ```
 
 > Agar `app.scripts.create_owner` mavjud bo'lmasa, `make seed` Makefile target'idan foydalaning yoki backend `app/scripts/` ichidagi mavjud script nomini ishlating.
+
+---
+
+## 6.5. Yuz tanish (Phase 4) — bir martalik enrollment
+
+Phase 4 har xodimning fotosidan 128-d face descriptor hisoblab,
+``employees.face_embedding`` ustuniga yozadi. Yangi xodim qo'shilganda
+yoki fotosi yangilanganda Celery task avtomatik ishlaydi. Eski
+xodimlarni bir marta to'plash uchun:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api \
+  python -m scripts.backfill_face_embeddings
+```
+
+Worker loglariga qarab progressni kuzating:
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f celery_worker
+```
+
+> RAM bo'yicha eslatma: api konteyneri Phase 4 da 512 → 768 MB ga,
+> celery_worker 256 → 512 MB ga ko'taril­di (`docker-compose.prod.yml`
+> deploy.resources.limits). Birinchi `/kiosks/me/recognize` so'rovida
+> `dlib` ~150 MB yuklanadi va worker'da ham. Agar VPS xotirasi tor
+> bo'lsa va kiosk path ishlatilmasa, limitlarni qaytarib pasaytiring.
 
 ---
 

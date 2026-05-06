@@ -17,6 +17,7 @@ import { BranchEditPage } from "@/pages/app/branches/BranchEdit";
 import { DevicesListPage } from "@/pages/app/devices/DevicesListPage";
 import { DeviceCreatePage } from "@/pages/app/devices/DeviceCreatePage";
 import { DeviceEditPage } from "@/pages/app/devices/DeviceEditPage";
+import { KiosksListPage } from "@/pages/app/kiosks/KiosksListPage";
 import { EmployeesListPage } from "@/pages/app/employees/EmployeesList";
 import { EmployeeCreatePage } from "@/pages/app/employees/EmployeeCreate";
 import { EmployeeEditPage } from "@/pages/app/employees/EmployeeEdit";
@@ -121,6 +122,7 @@ export default function App() {
           <Route path="devices" element={<DevicesListPage />} />
           <Route path="devices/new" element={<DeviceCreatePage />} />
           <Route path="devices/:id/edit" element={<DeviceEditPage />} />
+          <Route path="kiosks" element={<KiosksListPage />} />
           <Route path="users" element={<UsersListPage />} />
           <Route path="users/new" element={<UserCreatePage />} />
           <Route path="users/:id/edit" element={<UserEditPage />} />

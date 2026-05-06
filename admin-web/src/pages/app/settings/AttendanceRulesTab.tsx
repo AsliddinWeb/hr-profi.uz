@@ -19,6 +19,9 @@ interface FormState {
   face_match_threshold: string;
   max_devices_per_employee: string;
   absence_penalty_enabled: boolean;
+  pwa_checkin_enabled: boolean;
+  kiosk_checkin_enabled: boolean;
+  face_device_checkin_enabled: boolean;
 }
 
 function fromCompany(c: Company): FormState {
@@ -31,6 +34,9 @@ function fromCompany(c: Company): FormState {
     face_match_threshold: String(s.face_match_threshold ?? 0.85),
     max_devices_per_employee: String(s.max_devices_per_employee ?? 2),
     absence_penalty_enabled: s.absence_penalty_enabled !== false,
+    pwa_checkin_enabled: s.pwa_checkin_enabled !== false,
+    kiosk_checkin_enabled: s.kiosk_checkin_enabled !== false,
+    face_device_checkin_enabled: s.face_device_checkin_enabled !== false,
   };
 }
 
@@ -64,6 +70,9 @@ export function AttendanceRulesTab() {
         face_match_threshold: Number(f.face_match_threshold),
         max_devices_per_employee: Number(f.max_devices_per_employee),
         absence_penalty_enabled: f.absence_penalty_enabled,
+        pwa_checkin_enabled: f.pwa_checkin_enabled,
+        kiosk_checkin_enabled: f.kiosk_checkin_enabled,
+        face_device_checkin_enabled: f.face_device_checkin_enabled,
       };
       return (await api.patch<Company>("/companies/me", { settings })).data;
     },
@@ -140,6 +149,30 @@ export function AttendanceRulesTab() {
       </Section>
 
       <Section
+        title={t("settings_page.section_input_methods")}
+        hint={t("settings_page.section_input_methods_hint")}
+      >
+        <ToggleRow
+          checked={form.pwa_checkin_enabled}
+          onChange={(v) => update("pwa_checkin_enabled", v)}
+          label={t("settings_page.pwa_checkin_label")}
+          hint={t("settings_page.pwa_checkin_hint")}
+        />
+        <ToggleRow
+          checked={form.kiosk_checkin_enabled}
+          onChange={(v) => update("kiosk_checkin_enabled", v)}
+          label={t("settings_page.kiosk_checkin_label")}
+          hint={t("settings_page.kiosk_checkin_hint")}
+        />
+        <ToggleRow
+          checked={form.face_device_checkin_enabled}
+          onChange={(v) => update("face_device_checkin_enabled", v)}
+          label={t("settings_page.face_device_checkin_label")}
+          hint={t("settings_page.face_device_checkin_hint")}
+        />
+      </Section>
+
+      <Section
         title={t("settings_page.section_face_id")}
         hint={t("settings_page.section_face_id_hint")}
       >
@@ -190,5 +223,32 @@ export function AttendanceRulesTab() {
         </Button>
       </div>
     </form>
+  );
+}
+
+function ToggleRow({
+  checked,
+  onChange,
+  label,
+  hint,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  hint: string;
+}) {
+  return (
+    <label className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50/40 px-3 py-2.5 text-sm hover:border-slate-300">
+      <input
+        type="checkbox"
+        className="mt-0.5 size-4 accent-brand-600"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold text-slate-800">{label}</span>
+        <span className="mt-0.5 block text-[11px] text-slate-500">{hint}</span>
+      </span>
+    </label>
   );
 }

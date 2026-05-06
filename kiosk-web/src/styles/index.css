@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Kiosk fills the screen — disable browser UI niceties that don't help. */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+body {
+  background: #f4f6fb;
+  color: #11151f;
+}
+
+/* Big tablet-friendly tap targets. */
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-6 py-3 text-base font-semibold text-white shadow-sm transition active:scale-[0.98] hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-base font-medium text-ink-700 ring-1 ring-ink-200 transition hover:bg-ink-50 active:scale-[0.98];
+  }
+  .input-lg {
+    @apply w-full rounded-xl border border-ink-200 bg-white px-5 py-4 text-lg shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300;
+  }
+  .panel {
+    @apply flex h-full min-h-0 flex-col rounded-3xl bg-white p-6 shadow-sm ring-1 ring-ink-100;
+  }
+  .panel-checkin {
+    @apply ring-2 ring-emerald-200 bg-gradient-to-br from-white to-emerald-50/40;
+  }
+  .panel-checkout {
+    @apply ring-2 ring-amber-200 bg-gradient-to-br from-white to-amber-50/40;
+  }
+}

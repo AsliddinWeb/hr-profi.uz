@@ -30,6 +30,7 @@ from app.models.face_sync import (
     FaceSyncStatus,
     MAX_ATTEMPTS as FACE_SYNC_MAX_ATTEMPTS,
 )
+from app.models.kiosk import Kiosk
 from app.models.kpi import (
     KPIAssignment,
     KPIAssignmentStatus,
@@ -91,6 +92,7 @@ __all__ = [
     "FaceSyncJob",
     "FaceSyncStatus",
     "FlexibleConfig",
+    "Kiosk",
     "KPIAssignment",
     "KPIAssignmentStatus",
     "KPICategory",

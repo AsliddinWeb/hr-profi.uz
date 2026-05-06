@@ -157,6 +157,39 @@ async def _resolve_branch(db: AsyncSession, branch_id: UUID | None) -> Branch | 
     ).scalar_one_or_none()
 
 
+_METHOD_TOGGLE_KEY: dict[str, str] = {
+    "MOBILE_APP": "pwa_checkin_enabled",
+    "FACE_DEVICE": "face_device_checkin_enabled",
+    # ``KIOSK_TABLET`` lands in Phase 3; reserved here so the helper
+    # already knows about it. ``MANUAL`` and ``QR_CODE`` are admin
+    # overrides — always allowed.
+    "KIOSK_TABLET": "kiosk_checkin_enabled",
+}
+
+
+async def _enforce_method_toggle(
+    db: AsyncSession, company_id: UUID, method: AttendanceMethod
+) -> None:
+    """Reject the call when the operator has disabled this input channel
+    in ``Company.settings``. ``MANUAL`` / ``QR_CODE`` bypass the gate."""
+    from app.models.company import Company as _Company
+
+    method_value = method.value if hasattr(method, "value") else str(method)
+    settings_key = _METHOD_TOGGLE_KEY.get(method_value)
+    if settings_key is None:
+        return
+    company = (
+        await db.execute(
+            select(_Company)
+            .where(_Company.id == company_id)
+            .execution_options(skip_tenant_filter=True)
+        )
+    ).scalar_one()
+    enabled = (company.settings or {}).get(settings_key, True)
+    if enabled is False:
+        raise ConflictError(f"attendance.method_disabled:{method_value}")
+
+
 async def _block_if_on_leave(db: AsyncSession, employee_id: UUID, day: date) -> None:
     """Refuse a check-in/out when the employee has an approved leave for the
     day — the system would happily accept it otherwise (and the salary engine
@@ -189,7 +222,29 @@ async def check_in(
     method: AttendanceMethod = AttendanceMethod.MOBILE_APP,
     ip_address: str | None = None,
 ) -> AttendanceRecord:
+    """User-based check-in (mobile / PWA). Resolves the employee from the
+    user, then defers to :func:`check_in_for_employee`."""
     emp = await _employee_for_user(db, user)
+    return await check_in_for_employee(
+        db, emp, data, method=method, ip_address=ip_address
+    )
+
+
+async def check_in_for_employee(
+    db: AsyncSession,
+    emp: Employee,
+    data: CheckInRequest,
+    *,
+    method: AttendanceMethod = AttendanceMethod.MOBILE_APP,
+    ip_address: str | None = None,
+) -> AttendanceRecord:
+    """Lower-level check-in. Used by the kiosk + future face-ID device
+    paths where we already know the employee row directly (no ``User``
+    indirection). The user-based :func:`check_in` wraps this."""
+    # Honour the company-level toggles for which channels are enabled.
+    # Mobile/PWA goes through MOBILE_APP; kiosk through KIOSK_TABLET;
+    # face-ID hardware through its own webhook with its own gate.
+    await _enforce_method_toggle(db, emp.company_id, method)
     last = await _last_record(db, emp.id)
     if last and last.check_type == CheckType.CHECK_IN:
         raise ConflictError("attendance.already_checked_in")
@@ -303,7 +358,24 @@ async def check_out(
     method: AttendanceMethod = AttendanceMethod.MOBILE_APP,
     ip_address: str | None = None,
 ) -> AttendanceRecord:
+    """User-based check-out (mobile / PWA). Resolves the employee then
+    defers to :func:`check_out_for_employee`."""
     emp = await _employee_for_user(db, user)
+    return await check_out_for_employee(
+        db, emp, data, method=method, ip_address=ip_address
+    )
+
+
+async def check_out_for_employee(
+    db: AsyncSession,
+    emp: Employee,
+    data: CheckInRequest,
+    *,
+    method: AttendanceMethod = AttendanceMethod.MOBILE_APP,
+    ip_address: str | None = None,
+) -> AttendanceRecord:
+    """Lower-level check-out (kiosk / face-ID device path)."""
+    await _enforce_method_toggle(db, emp.company_id, method)
     last = await _last_record(db, emp.id)
     if not last or last.check_type != CheckType.CHECK_IN:
         raise ConflictError("attendance.no_active_check_in")

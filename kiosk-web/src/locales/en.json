@@ -1,0 +1,69 @@
+{
+  "app": {
+    "name": "Hr-Profi Kiosk"
+  },
+  "login": {
+    "title": "Kiosk login",
+    "subtitle": "Enter the slug and password",
+    "slug_label": "Slug",
+    "slug_placeholder": "main-entrance",
+    "password_label": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in...",
+    "wrong_credentials": "Invalid slug or password",
+    "url_hint_title": "Slug from URL",
+    "url_hint_body": "If the page path is `/<slug>`, the field is filled automatically."
+  },
+  "main": {
+    "search_placeholder": "Search by name or code...",
+    "checkin_title": "Check-in",
+    "checkout_title": "Check-out",
+    "checkin_hint": "Select yourself when arriving",
+    "checkout_hint": "Select yourself before leaving",
+    "no_employees": "No employees found",
+    "currently_in": "On duty",
+    "currently_out": "Off duty",
+    "tap_to_select": "Tap to select",
+    "loading": "Loading...",
+    "footer_branch": "Branch",
+    "footer_kiosk": "Kiosk",
+    "logout": "Sign out",
+    "logout_confirm": "Sign out of the kiosk? The password will be required to sign back in.",
+    "phase4_hint": "Just face the camera — you'll be recognised automatically. Manual selection still works if needed."
+  },
+  "confirm": {
+    "title_in": "Confirm check-in",
+    "title_out": "Confirm check-out",
+    "confirm_in": "Check-in",
+    "confirm_out": "Check-out",
+    "cancel": "Cancel",
+    "already_in": "This employee is already on duty. Check out first.",
+    "already_out": "This employee isn't on duty. Check in first."
+  },
+  "result": {
+    "success_in": "Checked in!",
+    "success_out": "Checked out!",
+    "late": "Late by {{minutes}} min",
+    "overtime": "Overtime: {{minutes}} min",
+    "tap_anywhere": "Tap anywhere to close"
+  },
+  "errors": {
+    "generic": "Something went wrong",
+    "method_disabled": "This channel is disabled in the company settings",
+    "already_checked_in": "Already checked in",
+    "no_active_check_in": "Check in first"
+  },
+  "offline": {
+    "title": "No connection",
+    "body": "The kiosk can't reach the server. Check the Wi-Fi."
+  },
+  "camera": {
+    "loading": "Connecting to camera...",
+    "live": "Live",
+    "denied": "Camera permission denied",
+    "missing": "No camera found",
+    "error": "Camera error",
+    "fallback_hint": "Works without a camera too — selfies just won't be saved.",
+    "title": "Place your face in the frame"
+  }
+}

@@ -45,6 +45,22 @@ def _resolved_company_id(user, tenant) -> UUID:
     return cid
 
 
+def _enqueue_face_embedding_compute(employee_id: UUID) -> None:
+    """Fire-and-forget Celery dispatch for the face-recognition embedding
+    compute. Lazy-imported so a broker outage / missing task module never
+    breaks the user-facing employee-CRUD response."""
+    try:
+        from app.tasks.face_tasks import compute_employee_embedding
+
+        compute_employee_embedding.delay(str(employee_id))
+    except Exception:  # noqa: BLE001
+        import logging
+
+        logging.getLogger(__name__).debug(
+            "face embedding dispatch skipped for emp=%s", employee_id
+        )
+
+
 # --- /next-code — placed BEFORE /{id} so it doesn't get caught by the path
 #     parameter route.
 
@@ -213,6 +229,14 @@ async def create_employee(
             logging.getLogger(__name__).exception(
                 "face_sync enqueue (create) failed for emp=%s", employee.id
             )
+
+    # Server-side face recognition (Phase 4 / kiosk path): compute and
+    # store the 128-d embedding for kiosk matching. Independent of the
+    # device face_sync queue above — that targets Hikvision/ZKTeco
+    # hardware; this populates ``Employee.face_embedding`` for the
+    # ``/kiosks/me/recognize`` brute-force matcher.
+    if employee.photo_url:
+        _enqueue_face_embedding_compute(employee.id)
     return EmployeeRead.model_validate(employee)
 
 
@@ -426,6 +450,13 @@ async def update_employee(
         logging.getLogger(__name__).exception(
             "face_sync enqueue (update) failed for emp=%s", emp.id
         )
+
+    # Server-side face recognition: refresh the kiosk-matching embedding
+    # whenever the photo changes. The Celery task itself handles the
+    # photo-cleared case (it nulls out face_embedding so a stale match
+    # can't survive).
+    if old_photo != emp.photo_url:
+        _enqueue_face_embedding_compute(emp.id)
     return EmployeeRead.model_validate(emp)
 
 

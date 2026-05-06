@@ -1,0 +1,69 @@
+{
+  "app": {
+    "name": "Hr-Profi Kiosk"
+  },
+  "login": {
+    "title": "Kiosk kirishi",
+    "subtitle": "Slug va parolni kiriting",
+    "slug_label": "Slug",
+    "slug_placeholder": "main-entrance",
+    "password_label": "Parol",
+    "submit": "Kirish",
+    "submitting": "Kirilyapti...",
+    "wrong_credentials": "Slug yoki parol noto'g'ri",
+    "url_hint_title": "URL'dan slug",
+    "url_hint_body": "Sahifa havolasi `/<slug>` ko'rinishida bo'lsa, slug avtomatik to'ldiriladi."
+  },
+  "main": {
+    "search_placeholder": "Ism yoki kod bo'yicha qidirish...",
+    "checkin_title": "Kelish",
+    "checkout_title": "Ketish",
+    "checkin_hint": "Kelganingizda o'zingizni tanlang",
+    "checkout_hint": "Ketishdan oldin o'zingizni tanlang",
+    "no_employees": "Hodimlar topilmadi",
+    "currently_in": "Ishda",
+    "currently_out": "Ishda emas",
+    "tap_to_select": "Tanlash uchun bosing",
+    "loading": "Yuklanmoqda...",
+    "footer_branch": "Filial",
+    "footer_kiosk": "Kiosk",
+    "logout": "Chiqish",
+    "logout_confirm": "Kioskdan chiqishga ishonchingiz komilmi? Qayta kirish uchun parol kerak bo'ladi.",
+    "phase4_hint": "Yuzni kameraga ko'rsating — avtomatik aniqlanadi. Aniqlanmasa qo'lda ham tanlash mumkin."
+  },
+  "confirm": {
+    "title_in": "Kelishni tasdiqlash",
+    "title_out": "Ketishni tasdiqlash",
+    "confirm_in": "Kelish",
+    "confirm_out": "Ketish",
+    "cancel": "Bekor qilish",
+    "already_in": "Bu hodim allaqachon ishda. Avval ketishni tanlang.",
+    "already_out": "Bu hodim ishda emas. Avval kelishni tanlang."
+  },
+  "result": {
+    "success_in": "Kelish muvaffaqiyatli!",
+    "success_out": "Ketish muvaffaqiyatli!",
+    "late": "Kechikish: {{minutes}} daqiqa",
+    "overtime": "Qo'shimcha: {{minutes}} daqiqa",
+    "tap_anywhere": "Yopish uchun bosing"
+  },
+  "errors": {
+    "generic": "Xato yuz berdi",
+    "method_disabled": "Bu kanal kompaniya sozlamalarida o'chirilgan",
+    "already_checked_in": "Allaqachon kelish belgilangan",
+    "no_active_check_in": "Avval kelishni belgilang"
+  },
+  "offline": {
+    "title": "Internet aloqasi yo'q",
+    "body": "Kiosk serverga ulana olmayapti. Wi-Fi'ni tekshiring."
+  },
+  "camera": {
+    "loading": "Kamera ulanmoqda...",
+    "live": "Jonli",
+    "denied": "Kamera ruxsati berilmagan",
+    "missing": "Kamera topilmadi",
+    "error": "Kamera xatosi",
+    "fallback_hint": "Kamerasiz ham ishlaydi — selfi saqlanmaydi xolos.",
+    "title": "Yuzingizni ramkaga joylashtiring"
+  }
+}

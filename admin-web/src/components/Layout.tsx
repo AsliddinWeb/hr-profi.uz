@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   Sparkles,
   Store,
+  Tablet,
   Trophy,
   Users,
   X,
@@ -135,6 +136,7 @@ function companyNav(t: (k: string) => string): NavSection[] {
       label: t("nav.section_admin"),
       items: [
         { to: "/app/devices", label: t("nav.devices"), icon: Cpu },
+        { to: "/app/kiosks", label: t("nav.kiosks"), icon: Tablet },
         { to: "/app/notifications", label: t("nav.notifications"), icon: Bell },
         { to: "/app/users", label: t("nav.users"), icon: ShieldCheck },
         { to: "/app/audit", label: t("nav.audit"), icon: Scroll },

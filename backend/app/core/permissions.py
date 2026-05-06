@@ -22,6 +22,7 @@ class Role(StrEnum):
     BRANCH_MANAGER = "BRANCH_MANAGER"
     EMPLOYEE = "EMPLOYEE"
     DEVICE = "DEVICE"
+    KIOSK = "KIOSK"
 
 
 # Phase 1 covers: company, branch, department, employee.read/create.
@@ -105,7 +106,28 @@ ROLE_PERMISSIONS: dict[Role, list[str]] = {
     Role.DEVICE: [
         "device.event",
     ],
+    Role.KIOSK: [
+        # Tablet kiosks identify employees via face recognition and
+        # write attendance directly. They never need to read other
+        # company data.
+        "kiosk.checkin",
+        "kiosk.checkout",
+        "kiosk.heartbeat",
+    ],
 }
+
+# Permissions used by admin-side CRUD on kiosks themselves. Granted
+# automatically by the wildcard rules above for OWNER / COMPANY_ADMIN.
+_KIOSK_ADMIN_PERMS = (
+    "kiosk.read",
+    "kiosk.create",
+    "kiosk.update",
+    "kiosk.delete",
+)
+ROLE_PERMISSIONS[Role.HR_MANAGER].extend(_KIOSK_ADMIN_PERMS)
+ROLE_PERMISSIONS[Role.BRANCH_MANAGER].extend(
+    [f"{p}.branch" for p in _KIOSK_ADMIN_PERMS]
+)
 
 
 _SCOPE_SUFFIXES = (".branch", ".self")

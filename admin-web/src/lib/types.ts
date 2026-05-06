@@ -862,6 +862,25 @@ export type ScheduleStatus =
   | "ON_LEAVE"
   | "REST_DAY";
 
+export interface Kiosk {
+  id: string;
+  company_id: string;
+  branch_id: string;
+  name: string;
+  slug: string;
+  notes: string | null;
+  is_active: boolean;
+  last_seen_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KioskCreateResponse {
+  kiosk: Kiosk;
+  login_url: string;
+  password: string;
+}
+
 export interface ShiftTemplate {
   id: string;
   company_id: string;

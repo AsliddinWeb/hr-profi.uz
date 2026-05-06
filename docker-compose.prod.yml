@@ -69,19 +69,26 @@ services:
       - "alembic upgrade head && exec gunicorn app.main:app -k uvicorn.workers.UvicornWorker -w 1 -b 0.0.0.0:8000 --access-logfile - --error-logfile -"
     ports:
       - "127.0.0.1:8100:8000"
+    # Phase 4 face matching loads dlib (~150 MB resident) when the kiosk
+    # ``/recognize`` endpoint first fires. The bump from 512 → 768 MB
+    # gives a ~100 MB cushion above peak observed on a 100-employee
+    # branch; tune downwards if you don't run the kiosk path.
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 768M
 
   celery_worker:
     volumes: !override
       - media:/app/media
     command: ["celery", "-A", "app.tasks.celery_app", "worker", "--loglevel=info", "--concurrency=1", "--max-tasks-per-child=100"]
+    # Worker also runs the face.compute_employee_embedding task which
+    # imports dlib + face_recognition_models. 256 → 512 MB gives the
+    # same headroom as api when an enrol burst hits.
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 512M
 
   celery_beat:
     volumes: !override
@@ -120,6 +127,21 @@ services:
       resources:
         limits:
           memory: 192M
+
+  # kiosk.hr-profi.uz — tablet PWA. Host nginx proxies 127.0.0.1:8104.
+  kiosk_web:
+    profiles: ["web", ""]
+    build:
+      context: ./kiosk-web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api/v1
+    ports:
+      - "127.0.0.1:8104:80"
+    deploy:
+      resources:
+        limits:
+          memory: 64M
 
   landing:
     build:

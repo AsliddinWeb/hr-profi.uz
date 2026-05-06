@@ -14,6 +14,8 @@ from app.api.v1 import (
     departments,
     devices,
     employees,
+    kiosk_runtime,
+    kiosks,
     kpi,
     leaves,
     notifications,
@@ -41,6 +43,8 @@ api_router.include_router(bonuses.router)
 api_router.include_router(leaves.router)
 api_router.include_router(kpi.router)
 api_router.include_router(devices.router)
+api_router.include_router(kiosks.router)
+api_router.include_router(kiosk_runtime.router)
 api_router.include_router(notifications.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(plans.router)

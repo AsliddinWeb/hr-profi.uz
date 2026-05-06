@@ -106,7 +106,8 @@
     "back": "Orqaga",
     "select": "Tanlang",
     "expand": "Ochish",
-    "collapse": "Yig'ish"
+    "collapse": "Yig'ish",
+    "close": "Yopish"
   },
   "layout": {
     "search_placeholder": "Hammasini qidirish...",
@@ -200,6 +201,7 @@
     "kpi": "KPI",
     "users": "Foydalanuvchilar",
     "devices": "Qurilmalar",
+    "kiosks": "Kiosklar",
     "notifications": "Bildirishnomalar",
     "settings": "Sozlamalar",
     "audit": "Audit",
@@ -1035,6 +1037,14 @@
     "logo_url": "Logo URL",
     "logo_preview_hint": "Logo PNG yoki SVG bo'lishi tavsiya etiladi.",
     "logo": "Kompaniya logosi",
+    "section_input_methods": "Davomat usullari",
+    "section_input_methods_hint": "Xodimlar qaysi usul orqali keldi-ketdi qayd qila olishini boshqaring. Bu kalitlar darhol ta'sir qiladi — o'chirilgan usul bilan kelgan so'rov rad etiladi.",
+    "pwa_checkin_label": "Mobil ilovadan davomat",
+    "pwa_checkin_hint": "Xodim my.hr-profi.uz orqali GPS+selfie bilan keldi-ketdi qayd qiladi.",
+    "kiosk_checkin_label": "Planshet kioskidan davomat",
+    "kiosk_checkin_hint": "Ofisda joylashtirilgan planshet (kiosk.hr-profi.uz) yuz tanish orqali avto-davomat.",
+    "face_device_checkin_label": "Face ID qurilmadan davomat",
+    "face_device_checkin_hint": "Hikvision/ZKTeco/Dahua qurilmalardan keladigan event'lar.",
 
     "section_locale": "Til, vaqt va valyuta",
     "section_locale_hint": "Hisobotlar va ko'rsatkichlar shu sozlamalardan foydalanadi.",
@@ -1735,5 +1745,39 @@
       "OFFLINE": "Uzilgan",
       "MAINTENANCE": "Texnik xizmat"
     }
+  },
+  "kiosks": {
+    "title": "Planshet kiosklari",
+    "subtitle": "Ofisda joylashtiriladigan planshetlarni boshqaring. Har bir planshet — alohida hisob va URL.",
+    "add": "Kiosk qo'shish",
+    "empty_title": "Hali kiosk yo'q",
+    "empty_hint": "Birinchi kioskingizni yarating. Planshetda URL ochib, slug va parol bilan tizimga kiriladi.",
+    "never_seen": "Hali ulanmagan",
+    "status_active": "Faol",
+    "status_inactive": "O'chirilgan",
+    "copied": "Nusxa olindi",
+    "copy_link": "Havolani nusxalash",
+    "last_seen": "Oxirgi ulanish",
+    "reset_password": "Parolni tiklash",
+    "delete_confirm": "Bu kioskni faolsiz qilishga ishonchingiz komilmi?",
+    "deactivate": "Faolsizlash",
+    "deleted": "Kiosk faolsiz qilindi",
+    "create_title": "Yangi kiosk",
+    "field_name": "Nom",
+    "field_name_placeholder": "Asosiy kirish kioski",
+    "field_branch": "Filial",
+    "field_password": "Parol",
+    "field_password_hint": "Eng kamida 4 ta belgi. Planshetda kirish uchun ishlatiladi.",
+    "field_notes": "Izoh",
+    "field_notes_hint": "Joylashuv yoki maqsad haqida qisqa eslatma (ixtiyoriy).",
+    "create_submit": "Yaratish",
+    "reset_title": "{{name}} — parolni tiklash",
+    "field_new_password": "Yangi parol",
+    "reset_submit": "Parolni yangilash",
+    "credentials_title": "Kiosk kirish ma'lumotlari",
+    "credentials_warning": "Bu parol faqat hozir ko'rsatiladi. Iltimos, planshetga kirib, saqlab qo'ying — keyin qaytarib bo'lmaydi.",
+    "cred_url": "Kirish havolasi",
+    "cred_slug": "Slug",
+    "cred_password": "Parol"
   }
 }

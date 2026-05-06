@@ -15,6 +15,7 @@ celery_app = Celery(
         "app.tasks.kpi_tasks",
         "app.tasks.device_tasks",
         "app.tasks.report_tasks",
+        "app.tasks.face_tasks",
     ],
 )
 

@@ -122,6 +122,21 @@ services:
     depends_on:
       - api
 
+  # Tablet kiosk PWA — served from kiosk.<DOMAIN>. Same nginx pattern as
+  # admin_web (proxies /api/* to the api service on the bridge network).
+  kiosk_web:
+    profiles: ["web"]
+    build:
+      context: ./kiosk-web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api/v1
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Tashkent
+    depends_on:
+      - api
+
   # Employee-facing PWA. Listens on 5174 (next start). API requests are
   # proxied via Next.js rewrites to the ``api`` service on the docker
   # network, so we don't need a separate nginx layer.

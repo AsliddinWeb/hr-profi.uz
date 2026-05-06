@@ -24,6 +24,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libffi-dev \
     shared-mime-info \
     fonts-dejavu-core \
+    # dlib build (used by face_recognition). cmake compiles dlib from
+    # source; libopenblas+liblapack give it a fast BLAS path so the
+    # 128-d face embedding takes ~30 ms instead of ~200 ms per call on
+    # cheap VPS CPUs. The X11/GTK deps the upstream README mentions are
+    # GUI-only (camera preview); we don't need them on the server.
+    cmake \
+    libopenblas-dev \
+    liblapack-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -sSL https://install.python-poetry.org | python3 -

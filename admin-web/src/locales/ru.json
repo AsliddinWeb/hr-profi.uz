@@ -105,7 +105,8 @@
     "back": "Назад",
     "select": "Выберите",
     "expand": "Развернуть",
-    "collapse": "Свернуть"
+    "collapse": "Свернуть",
+    "close": "Закрыть"
   },
   "layout": {
     "search_placeholder": "Поиск по системе...",
@@ -199,6 +200,7 @@
     "kpi": "KPI",
     "users": "Пользователи",
     "devices": "Устройства",
+    "kiosks": "Киоски",
     "notifications": "Уведомления",
     "settings": "Настройки",
     "audit": "Аудит",
@@ -1034,6 +1036,14 @@
     "logo_url": "URL логотипа",
     "logo_preview_hint": "Рекомендуется PNG или SVG.",
     "logo": "Логотип компании",
+    "section_input_methods": "Методы ввода посещаемости",
+    "section_input_methods_hint": "Какие каналы могут писать посещаемость. Изменение действует мгновенно.",
+    "pwa_checkin_label": "Мобильное приложение",
+    "pwa_checkin_hint": "Сотрудник через my.hr-profi.uz отмечается с GPS + селфи.",
+    "kiosk_checkin_label": "Планшет-киоск",
+    "kiosk_checkin_hint": "Планшет в офисе (kiosk.hr-profi.uz) с автоматическим распознаванием лица.",
+    "face_device_checkin_label": "Face ID устройство",
+    "face_device_checkin_hint": "События от устройств Hikvision / ZKTeco / Dahua.",
 
     "section_locale": "Язык, время и валюта",
     "section_locale_hint": "Отчёты и метрики используют эти настройки.",
@@ -1734,5 +1744,39 @@
       "OFFLINE": "Не в сети",
       "MAINTENANCE": "Обслуживание"
     }
+  },
+  "kiosks": {
+    "title": "Планшетные киоски",
+    "subtitle": "Управляйте планшетами, установленными в офисе. Каждый планшет — отдельный аккаунт и URL.",
+    "add": "Добавить киоск",
+    "empty_title": "Киосков пока нет",
+    "empty_hint": "Создайте первый киоск. На планшете нужно открыть URL и войти по slug + паролю.",
+    "never_seen": "Ещё не подключался",
+    "status_active": "Активен",
+    "status_inactive": "Отключён",
+    "copied": "Скопировано",
+    "copy_link": "Скопировать ссылку",
+    "last_seen": "Последняя активность",
+    "reset_password": "Сбросить пароль",
+    "delete_confirm": "Точно отключить этот киоск?",
+    "deactivate": "Отключить",
+    "deleted": "Киоск отключён",
+    "create_title": "Новый киоск",
+    "field_name": "Название",
+    "field_name_placeholder": "Главный вход — киоск",
+    "field_branch": "Филиал",
+    "field_password": "Пароль",
+    "field_password_hint": "Минимум 4 символа. Используется для входа на планшете.",
+    "field_notes": "Заметка",
+    "field_notes_hint": "Краткая заметка о расположении или назначении (необязательно).",
+    "create_submit": "Создать",
+    "reset_title": "{{name}} — сброс пароля",
+    "field_new_password": "Новый пароль",
+    "reset_submit": "Обновить пароль",
+    "credentials_title": "Учётные данные киоска",
+    "credentials_warning": "Этот пароль показывается только сейчас. Войдите на планшет и сохраните его — потом не восстановить.",
+    "cred_url": "Ссылка для входа",
+    "cred_slug": "Slug",
+    "cred_password": "Пароль"
   }
 }

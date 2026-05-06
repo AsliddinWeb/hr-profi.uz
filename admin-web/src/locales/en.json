@@ -105,7 +105,8 @@
     "back": "Back",
     "select": "Select",
     "expand": "Expand",
-    "collapse": "Collapse"
+    "collapse": "Collapse",
+    "close": "Close"
   },
   "layout": {
     "search_placeholder": "Search anything...",
@@ -199,6 +200,7 @@
     "kpi": "KPI",
     "users": "Users",
     "devices": "Devices",
+    "kiosks": "Kiosks",
     "notifications": "Notifications",
     "settings": "Settings",
     "audit": "Audit",
@@ -1034,6 +1036,14 @@
     "logo_url": "Logo URL",
     "logo_preview_hint": "PNG or SVG recommended.",
     "logo": "Company logo",
+    "section_input_methods": "Attendance input methods",
+    "section_input_methods_hint": "Which channels can write attendance. Changes take effect immediately.",
+    "pwa_checkin_label": "Mobile PWA",
+    "pwa_checkin_hint": "Employees check in/out from my.hr-profi.uz with GPS + selfie.",
+    "kiosk_checkin_label": "Tablet kiosk",
+    "kiosk_checkin_hint": "Office tablet (kiosk.hr-profi.uz) with automatic face recognition.",
+    "face_device_checkin_label": "Face ID device",
+    "face_device_checkin_hint": "Events from Hikvision / ZKTeco / Dahua hardware.",
 
     "section_locale": "Language, time and currency",
     "section_locale_hint": "Reports and metrics use these settings.",
@@ -1734,5 +1744,39 @@
       "OFFLINE": "Offline",
       "MAINTENANCE": "Maintenance"
     }
+  },
+  "kiosks": {
+    "title": "Tablet kiosks",
+    "subtitle": "Manage office-deployed tablets. Each tablet has its own login and URL.",
+    "add": "Add kiosk",
+    "empty_title": "No kiosks yet",
+    "empty_hint": "Create your first kiosk. Open the URL on a tablet and sign in with the slug + password.",
+    "never_seen": "Never connected",
+    "status_active": "Active",
+    "status_inactive": "Disabled",
+    "copied": "Copied",
+    "copy_link": "Copy link",
+    "last_seen": "Last seen",
+    "reset_password": "Reset password",
+    "delete_confirm": "Disable this kiosk?",
+    "deactivate": "Disable",
+    "deleted": "Kiosk disabled",
+    "create_title": "New kiosk",
+    "field_name": "Name",
+    "field_name_placeholder": "Main entrance kiosk",
+    "field_branch": "Branch",
+    "field_password": "Password",
+    "field_password_hint": "At least 4 characters. Used to sign in on the tablet.",
+    "field_notes": "Notes",
+    "field_notes_hint": "Short note about location or purpose (optional).",
+    "create_submit": "Create",
+    "reset_title": "{{name}} — reset password",
+    "field_new_password": "New password",
+    "reset_submit": "Update password",
+    "credentials_title": "Kiosk credentials",
+    "credentials_warning": "This password is shown only once. Sign in on the tablet and save it — it cannot be recovered later.",
+    "cred_url": "Login URL",
+    "cred_slug": "Slug",
+    "cred_password": "Password"
   }
 }

@@ -14,7 +14,17 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    LargeBinary,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -114,8 +124,18 @@ class Employee(Base, TenantMixin, TimestampMixin):
         Numeric(4, 2), default=Decimal("1.5"), nullable=False
     )
 
-    # Future Phase 4 hook for face id template — keep nullable for now.
+    # Hikvision-style face_id_template_id (legacy device handshake) —
+    # kept around for the Face-ID hardware path.
     face_template_id: Mapped[str | None] = mapped_column(String(255))
+
+    # Server-side face recognition for the kiosk path (Phase 4).
+    # ``face_embedding`` is the raw bytes of a 128-d float64 numpy array
+    # produced by face_recognition.face_encodings(). ``face_enrolled_at``
+    # is set whenever the embedding is computed/refreshed so the admin
+    # UI can show a "face enrolled" badge and the backfill task can
+    # skip employees that are already up to date.
+    face_embedding: Mapped[bytes | None] = mapped_column(LargeBinary)
+    face_enrolled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     terminated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

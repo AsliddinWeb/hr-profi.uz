@@ -490,6 +490,24 @@ async def process_face_match(
     readable anomaly reasons (empty list = no anomalies)."""
     anomalies: list[str] = []
 
+    # Honour the per-company toggle for face-ID device input.
+    company_for_toggle = (
+        await db.execute(
+            select(Company)
+            .where(Company.id == device.company_id)
+            .execution_options(skip_tenant_filter=True)
+        )
+    ).scalar_one_or_none()
+    if (
+        company_for_toggle
+        and (company_for_toggle.settings or {}).get(
+            "face_device_checkin_enabled", True
+        )
+        is False
+    ):
+        anomalies.append("face_device_disabled_by_company")
+        return None, anomalies
+
     if not event.employee_code:
         anomalies.append("missing_employee_code")
         return None, anomalies
