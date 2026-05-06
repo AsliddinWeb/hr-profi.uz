@@ -334,7 +334,14 @@ async def _autogenerate_absence_deduction(
 
     Triggers iff:
     - The day is strictly before today (we don't penalise the in-progress day).
-    - The day is one of the company's working_days (5- or 6-day week).
+    - The day is on/after the employee's ``hire_date`` (no penalising days
+      before they were employed).
+    - The day is a working day for the EMPLOYEE — uses their assigned shift
+      template's ``working_days`` when available, else the company-wide
+      ``working_days``. So a Mon-Sat employee assigned a Mon-Fri template
+      isn't penalised for missing Saturday.
+    - The day's ShiftSchedule isn't ``CANCELLED`` / ``ON_LEAVE`` /
+      ``REST_DAY`` — those are intentional absences.
     - The employee has zero VALID check-ins on the day.
     - The company hasn't disabled the feature via
       ``settings.absence_penalty_enabled = false``.
@@ -348,8 +355,51 @@ async def _autogenerate_absence_deduction(
         return
     if company.settings.get("absence_penalty_enabled", True) is False:
         return
-    if not _is_working_day(day, company):
+    if employee.hire_date is not None and day < employee.hire_date:
+        return  # before they joined the company
+
+    # Decide "is today a working day" using the employee's template first,
+    # company default as fallback.
+    is_workday: bool
+    template = None
+    if employee.shift_template_id:
+        from app.models.shift import ShiftTemplate
+
+        template = (
+            await db.execute(
+                select(ShiftTemplate).where(
+                    ShiftTemplate.id == employee.shift_template_id
+                )
+            )
+        ).scalar_one_or_none()
+    if template is not None and template.working_days:
+        is_workday = day.isoweekday() in (template.working_days or [])
+    else:
+        is_workday = _is_working_day(day, company)
+    if not is_workday:
         return
+
+    # Honour intentional non-work statuses on the day's ShiftSchedule.
+    from app.models.shift import ScheduleStatus, ShiftSchedule
+
+    sched = (
+        await db.execute(
+            select(ShiftSchedule).where(
+                ShiftSchedule.employee_id == employee.id,
+                ShiftSchedule.date == day,
+            )
+        )
+    ).scalar_one_or_none()
+    if sched is not None:
+        sched_status = (
+            sched.status.value if hasattr(sched.status, "value") else str(sched.status)
+        )
+        if sched_status in (
+            ScheduleStatus.CANCELLED.value,
+            ScheduleStatus.ON_LEAVE.value,
+            ScheduleStatus.REST_DAY.value,
+        ):
+            return
 
     # Already had a valid check-in? Then it's not an absence — late deductions
     # are handled separately.
