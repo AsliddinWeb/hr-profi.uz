@@ -370,6 +370,8 @@
     "live_worked": "Отработано",
     "live_late": "Опоз.",
     "live_overtime": "Свер.",
+    "unit_hour": "ч",
+    "unit_min": "мин",
 
     "stat_total": "Всего",
     "stat_working": "Сейчас работает",

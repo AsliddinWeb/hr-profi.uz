@@ -33,6 +33,27 @@ export function fmtHM(minutes: number): string {
   return `${h}:${String(m).padStart(2, "0")}`;
 }
 
+/** Compact human-readable duration in the active locale's short units.
+ *
+ *   59 min  → "59m"
+ *   60 min  → "1s"
+ *   95 min  → "1s 35m"
+ *  211 min  → "3s 31m"
+ *
+ * Used for the late / OT pills on the Live cards where "+211m" is harder
+ * to scan than "+3s 31m".
+ */
+export function fmtDurationShort(
+  minutes: number,
+  units: { hour: string; minute: string } = { hour: "s", minute: "m" }
+): string {
+  const total = Math.max(0, Math.floor(minutes));
+  if (total < 60) return `${total}${units.minute}`;
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return m === 0 ? `${h}${units.hour}` : `${h}${units.hour} ${m}${units.minute}`;
+}
+
 /** Compose the avatar initials when no photo is available. */
 export function initialsOf(name: string): string {
   return name

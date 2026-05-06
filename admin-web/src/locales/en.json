@@ -370,6 +370,8 @@
     "live_worked": "Worked",
     "live_late": "Late",
     "live_overtime": "OT",
+    "unit_hour": "h",
+    "unit_min": "m",
 
     "stat_total": "Total",
     "stat_working": "Currently working",

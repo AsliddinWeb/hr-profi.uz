@@ -22,7 +22,7 @@ import { useEnumLabel } from "@/lib/enum";
 import { cn } from "@/lib/cn";
 import type { Branch, DailyOverviewRow, Page } from "@/lib/types";
 
-import { fmtHM, fmtTime, initialsOf } from "./utils";
+import { fmtDurationShort, fmtHM, fmtTime, initialsOf } from "./utils";
 import { LiveCardDetailsDialog } from "./LiveCardDetailsDialog";
 
 /** Local YYYY-MM-DD for today (no UTC drift on date pickers). */
@@ -575,13 +575,21 @@ function EmployeeLiveCard({
         {row.late_minutes > 0 && (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800 ring-1 ring-amber-200">
             <Clock className="size-3" />
-            +{row.late_minutes}m {t("attendance.live_late")}
+            +{fmtDurationShort(row.late_minutes, {
+              hour: t("attendance.unit_hour"),
+              minute: t("attendance.unit_min"),
+            })}{" "}
+            {t("attendance.live_late")}
           </span>
         )}
         {row.overtime_minutes > 0 && (
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-800 ring-1 ring-emerald-200">
             <TrendingUp className="size-3" />
-            +{row.overtime_minutes}m {t("attendance.live_overtime")}
+            +{fmtDurationShort(row.overtime_minutes, {
+              hour: t("attendance.unit_hour"),
+              minute: t("attendance.unit_min"),
+            })}{" "}
+            {t("attendance.live_overtime")}
           </span>
         )}
         {!isAbsent && row.late_minutes === 0 && row.overtime_minutes === 0 && (
