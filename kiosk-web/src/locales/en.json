@@ -23,23 +23,24 @@
     "bullet_offline": "Survives Wi-Fi drops (syncs back on reconnect)"
   },
   "main": {
+    "idle_title": "Face the camera",
+    "idle_hint": "The system will recognise you and record your check-in or check-out.",
+    "scanning_title": "Recognising...",
+    "cooldown_title": "Hi, {{name}}!",
+    "cooldown_hint": "Next check is available in 30 seconds.",
+    "manual_button": "Not recognised? Pick manually",
+    "manual_title": "Manual selection",
+    "manual_subtitle": "If the camera isn't working or your face isn't enrolled, pick yourself from the list.",
     "search_placeholder": "Search by name or code...",
-    "checkin_title": "Check-in",
-    "checkout_title": "Check-out",
-    "checkin_hint": "Select yourself when arriving",
-    "checkout_hint": "Select yourself before leaving",
     "no_employees": "No employees found",
     "no_employees_hint": "Clear the search or check with your admin",
     "currently_in": "On duty",
     "currently_out": "Off duty",
-    "tap_to_select": "Tap to select",
-    "available_short": "ready",
     "loading": "Loading...",
     "footer_branch": "Branch",
     "footer_kiosk": "Kiosk",
     "logout": "Sign out",
-    "logout_confirm": "Sign out of the kiosk? The password will be required to sign back in.",
-    "phase4_hint": "Just face the camera — you'll be recognised automatically. Manual selection still works if needed."
+    "logout_confirm": "Sign out of the kiosk? The password will be required to sign back in."
   },
   "confirm": {
     "title_in": "Confirm check-in",

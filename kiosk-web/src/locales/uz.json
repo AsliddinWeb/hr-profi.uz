@@ -23,23 +23,24 @@
     "bullet_offline": "Wi-Fi tushsa ham ishlaydi (qayta ulanganda yuboradi)"
   },
   "main": {
+    "idle_title": "Yuzingizni kameraga ko'rsating",
+    "idle_hint": "Tizim avtomatik aniqlab, kelish yoki ketishingizni belgilaydi.",
+    "scanning_title": "Aniqlanmoqda...",
+    "cooldown_title": "Salom, {{name}}!",
+    "cooldown_hint": "Yana belgilash uchun bir oz kuting (30 sek).",
+    "manual_button": "Aniqlanmadimi? Qo'lda tanlash",
+    "manual_title": "Qo'lda tanlash",
+    "manual_subtitle": "Kamera ishlamasa yoki yuz aniqlanmasa, ro'yxatdan o'zingizni tanlang.",
     "search_placeholder": "Ism yoki kod bo'yicha qidirish...",
-    "checkin_title": "Kelish",
-    "checkout_title": "Ketish",
-    "checkin_hint": "Kelganingizda o'zingizni tanlang",
-    "checkout_hint": "Ketishdan oldin o'zingizni tanlang",
     "no_employees": "Hodimlar topilmadi",
     "no_employees_hint": "Qidiruvni o'chirib ko'ring yoki adminga aloqa qiling",
     "currently_in": "Ishda",
     "currently_out": "Ishda emas",
-    "tap_to_select": "Tanlash uchun bosing",
-    "available_short": "tayyor",
     "loading": "Yuklanmoqda...",
     "footer_branch": "Filial",
     "footer_kiosk": "Kiosk",
     "logout": "Chiqish",
-    "logout_confirm": "Kioskdan chiqishga ishonchingiz komilmi? Qayta kirish uchun parol kerak bo'ladi.",
-    "phase4_hint": "Yuzni kameraga ko'rsating — avtomatik aniqlanadi. Aniqlanmasa qo'lda ham tanlash mumkin."
+    "logout_confirm": "Kioskdan chiqishga ishonchingiz komilmi? Qayta kirish uchun parol kerak bo'ladi."
   },
   "confirm": {
     "title_in": "Kelishni tasdiqlash",

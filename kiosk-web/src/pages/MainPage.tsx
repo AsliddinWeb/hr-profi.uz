@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
   Clock,
+  Keyboard,
   LogOut,
   Search,
   UserRound,
@@ -24,22 +25,21 @@ import type {
   KioskRecognizeResponse,
 } from "@/lib/types";
 
-// How often the auto-recognize loop snaps a frame. 2.5 s is a sweet
-// spot — fast enough that walking up to the tablet feels reactive,
-// slow enough that a single API worker on a $5 VPS keeps up with face
-// matching (~80–150 ms per call). Lower it on burlier hardware.
+/* The kiosk's primary mode is *automatic*: the operator stands in
+ * front of the camera and the server-side face recognition picks
+ * them, decides the direction (CHECK_IN if not currently on duty,
+ * CHECK_OUT otherwise) and fires the call. The grid of employees is
+ * a fallback for when face matching fails (poor lighting, no enrolled
+ * photo, low confidence). It's hidden behind a button so the surface
+ * stays calm and self-explanatory. */
+
+// How often the auto-recognize loop snaps a frame.
 const RECOGNIZE_INTERVAL_MS = 2500;
 // After firing a check on someone, ignore their face for this long
-// so they don't get checked-in again as they linger to read the
-// confirmation overlay.
+// so they don't get re-fired as they linger to read the success overlay.
 const PER_EMPLOYEE_COOLDOWN_MS = 30_000;
 
 type Direction = "IN" | "OUT";
-
-interface ConfirmState {
-  employee: KioskEmployee;
-  direction: Direction;
-}
 
 export function MainPage() {
   const { t, i18n } = useTranslation();
@@ -50,23 +50,33 @@ export function MainPage() {
   const meQ = useQuery({
     queryKey: ["kiosk-me"],
     queryFn: async () => (await api.get<KioskMeResponse>("/kiosks/me")).data,
-    refetchInterval: 60_000, // doubles as a heartbeat
+    refetchInterval: 60_000,
   });
 
-  // Mirror the kiosk row back into the auth store so the persisted
-  // session always reflects the latest server state (e.g. renamed kiosk).
   useEffect(() => {
     if (meQ.data?.kiosk) setKiosk(meQ.data.kiosk);
   }, [meQ.data?.kiosk, setKiosk]);
 
-  const [search, setSearch] = useState("");
-
   const employeesQ = useQuery({
     queryKey: ["kiosk-employees"],
     queryFn: async () =>
-      (await api.get<KioskEmployeeList>("/kiosks/me/employees", { params: { limit: 500 } })).data,
+      (await api.get<KioskEmployeeList>("/kiosks/me/employees", { params: { limit: 500 } }))
+        .data,
     refetchInterval: 30_000,
   });
+
+  const cameraRef = useRef<CameraHandle | null>(null);
+
+  const [manualOpen, setManualOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [confirmEmp, setConfirmEmp] = useState<KioskEmployee | null>(null);
+  const [result, setResult] = useState<{
+    response: KioskAttendanceResponse;
+    direction: Direction;
+  } | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [lastMatchName, setLastMatchName] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const items = employeesQ.data?.items ?? [];
@@ -79,32 +89,30 @@ export function MainPage() {
     );
   }, [employeesQ.data, search]);
 
-  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
-  const [result, setResult] = useState<{
-    response: KioskAttendanceResponse;
-    direction: Direction;
-  } | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  // Single camera at the top of the page — same physical camera the
-  // tablet has. Frame is captured exactly once on confirm and attached
-  // to the check-in/out as a selfie. Keeping the preview always-on
-  // (rather than spinning up the camera per click) avoids the per-click
-  // ~700ms warm-up that getUserMedia takes on tablet hardware.
-  const cameraRef = useRef<CameraHandle | null>(null);
+  /* ---------- Mutation: fire a check-in/out ----------------------- */
 
   const checkMut = useMutation({
-    mutationFn: async (payload: { employee_id: string; direction: Direction }) => {
-      const path = payload.direction === "IN" ? "/kiosks/me/checkin" : "/kiosks/me/checkout";
-      const image_base64 = cameraRef.current?.captureFrame() ?? null;
+    mutationFn: async (payload: {
+      employee: KioskEmployee;
+      direction: Direction;
+      withSelfie: boolean;
+    }) => {
+      const path =
+        payload.direction === "IN"
+          ? "/kiosks/me/checkin"
+          : "/kiosks/me/checkout";
+      const image_base64 = payload.withSelfie
+        ? cameraRef.current?.captureFrame() ?? null
+        : null;
       const r = await api.post<KioskAttendanceResponse>(path, {
-        employee_id: payload.employee_id,
+        employee_id: payload.employee.id,
         image_base64,
       });
       return { response: r.data, direction: payload.direction };
     },
     onSuccess: (r) => {
-      setConfirm(null);
+      setConfirmEmp(null);
+      setManualOpen(false);
       setResult(r);
       qc.invalidateQueries({ queryKey: ["kiosk-employees"] });
     },
@@ -113,8 +121,7 @@ export function MainPage() {
     },
   });
 
-  // Auto-dismiss the success overlay after 6s so the kiosk returns to
-  // the directory ready for the next person.
+  // Auto-dismiss the success overlay after 6s.
   useEffect(() => {
     if (!result) return;
     const id = window.setTimeout(() => setResult(null), 6000);
@@ -128,25 +135,21 @@ export function MainPage() {
     return () => window.clearTimeout(id);
   }, [errorMsg]);
 
+  // Clear "last match" hint after a few seconds so it doesn't linger.
+  useEffect(() => {
+    if (!lastMatchName) return;
+    const id = window.setTimeout(() => setLastMatchName(null), 3500);
+    return () => window.clearTimeout(id);
+  }, [lastMatchName]);
+
   /* ---------- Auto face-recognize loop ---------------------------- */
-  // Per-employee cooldown so the same person standing in front of the
-  // tablet doesn't get a fresh check-in every 2.5 s.
+
   const cooldownRef = useRef<Map<string, number>>(new Map());
-  // ``true`` while the loop is mid-call so the interval never overlaps
-  // a previous in-flight recognize on slow networks.
   const recognizingRef = useRef(false);
-  // Scanning shows a subtle "AI is looking" badge on the camera so the
-  // operator can tell the loop is alive. Driven from state (not the
-  // ref) so React re-renders.
-  const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
-    // Pause the loop while a confirm modal or success overlay is on
-    // screen — the operator's hands are busy, the tablet just had a
-    // successful match, and the camera is probably mid-occluded.
-    if (confirm || result) return;
-    // Need camera + at least one fetched employee row before there's
-    // anything to compare against.
+    // Pause loop while a confirm modal / success overlay / manual sheet is up.
+    if (confirmEmp || result || manualOpen) return;
     if (!employeesQ.data?.items?.length) return;
 
     let cancelled = false;
@@ -164,20 +167,21 @@ export function MainPage() {
         );
         if (cancelled || !r.data.matched || !r.data.match) return;
         const emp = r.data.match.employee;
-        // Apply cooldown.
         const last = cooldownRef.current.get(emp.id) ?? 0;
-        if (Date.now() - last < PER_EMPLOYEE_COOLDOWN_MS) return;
+        if (Date.now() - last < PER_EMPLOYEE_COOLDOWN_MS) {
+          // Still inside the cooldown — surface the name silently so
+          // the operator knows the kiosk *did* recognize them, just
+          // not act again yet.
+          setLastMatchName(emp.full_name);
+          return;
+        }
         cooldownRef.current.set(emp.id, Date.now());
-        // Decide direction from current state. If a checked-in
-        // employee's face is matched again, that's a check-out;
-        // otherwise check-in.
         const direction: Direction = emp.is_currently_in ? "OUT" : "IN";
-        // Fire directly — no confirm modal in auto mode. The success
-        // overlay still gives a clear visible/audible confirmation.
-        checkMut.mutate({ employee_id: emp.id, direction });
+        // Auto-fire — the captured frame is reused as the selfie via
+        // the mutation's withSelfie flag.
+        checkMut.mutate({ employee: emp, direction, withSelfie: true });
       } catch {
-        // Recognize failures are normal (no face in frame) — stay
-        // quiet. The loop will retry on the next tick.
+        // No face / network blip — the next tick will retry.
       } finally {
         recognizingRef.current = false;
         if (!cancelled) setScanning(false);
@@ -189,30 +193,22 @@ export function MainPage() {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [confirm, result, employeesQ.data, checkMut]);
+  }, [confirmEmp, result, manualOpen, employeesQ.data, checkMut]);
 
-  function pickEmployee(emp: KioskEmployee, direction: Direction) {
-    // Friendly cross-checks: don't even bother sending if the row already
-    // says the employee's state contradicts the requested action.
-    if (direction === "IN" && emp.is_currently_in) {
-      setErrorMsg(t("confirm.already_in"));
-      return;
-    }
-    if (direction === "OUT" && !emp.is_currently_in) {
-      setErrorMsg(t("confirm.already_out"));
-      return;
-    }
-    setConfirm({ employee: emp, direction });
+  /* ---------- Manual selection helpers ---------------------------- */
+
+  function pickManual(emp: KioskEmployee) {
+    setConfirmEmp(emp);
   }
 
   function handleLogout() {
-    if (window.confirm(t("main.logout_confirm"))) {
-      logout();
-    }
+    if (window.confirm(t("main.logout_confirm"))) logout();
   }
 
   const me = meQ.data;
   const offline = meQ.isError;
+
+  /* --------------------------------------------------------------- */
 
   return (
     <div className="flex h-full w-full flex-col bg-[var(--page-bg)]">
@@ -225,74 +221,78 @@ export function MainPage() {
         onLogout={handleLogout}
       />
 
-      {/* Camera + search row */}
-      <div className="border-b border-[var(--card-border)] bg-white px-6 py-4">
-        <div className="mx-auto flex max-w-5xl flex-col gap-4 md:flex-row md:items-center">
-          <div className="shrink-0 md:w-72">
+      {/* Hero — big camera + instruction, centered. The whole point of
+          the kiosk is "stand here, you're recognized." Keep the surface
+          calm and the camera unmissable. */}
+      <main className="flex min-h-0 flex-1 items-center justify-center p-5 sm:p-8">
+        <div className="flex w-full max-w-3xl flex-col items-center gap-6">
+          <div className="w-full">
             <CameraPreview ref={cameraRef} scanning={scanning} />
-            <p className="mt-2 text-center text-[11px] font-medium uppercase tracking-wider text-ink-500">
-              {t("camera.title")}
+          </div>
+
+          <div className="text-center">
+            <p className="text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
+              {scanning
+                ? t("main.scanning_title")
+                : lastMatchName
+                  ? t("main.cooldown_title", { name: lastMatchName })
+                  : t("main.idle_title")}
+            </p>
+            <p className="mx-auto mt-1.5 max-w-md text-sm leading-snug text-ink-500 sm:text-base">
+              {lastMatchName
+                ? t("main.cooldown_hint")
+                : t("main.idle_hint")}
             </p>
           </div>
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute inset-y-0 left-4 my-auto size-5 text-ink-400" />
-            <input
-              type="search"
-              className="w-full rounded-xl border-0 bg-ink-50 py-3.5 pl-12 pr-4 text-base ring-1 ring-inset ring-[var(--card-border)] transition placeholder:text-ink-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-              placeholder={t("main.search_placeholder") ?? ""}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+
+          {/* Manual fallback — small unobtrusive button so the operator
+              can still help themselves if the camera fails or the
+              employee isn't enrolled yet. */}
+          <button
+            type="button"
+            onClick={() => setManualOpen(true)}
+            className="inline-flex items-center gap-2 rounded-full border border-[var(--card-border)] bg-white px-4 py-2 text-sm font-medium text-ink-600 shadow-sm transition hover:border-brand-300 hover:text-brand-700"
+          >
+            <Keyboard className="size-4" />
+            {t("main.manual_button")}
+          </button>
         </div>
-      </div>
+      </main>
 
-      {/* Split panes */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 p-4 md:grid-cols-2 md:p-5">
-        <Pane
-          direction="IN"
-          title={t("main.checkin_title")}
-          hint={t("main.checkin_hint")}
+      {/* Manual selection drawer */}
+      {manualOpen && (
+        <ManualSheet
           employees={filtered}
-          onPick={(e) => pickEmployee(e, "IN")}
+          search={search}
+          onSearch={setSearch}
           loading={employeesQ.isLoading}
-          lang={i18n.language}
+          onPick={pickManual}
+          onClose={() => {
+            setManualOpen(false);
+            setSearch("");
+          }}
         />
-        <Pane
-          direction="OUT"
-          title={t("main.checkout_title")}
-          hint={t("main.checkout_hint")}
-          employees={filtered}
-          onPick={(e) => pickEmployee(e, "OUT")}
-          loading={employeesQ.isLoading}
-          lang={i18n.language}
-        />
-      </div>
+      )}
 
-      {/* Footer hint about Phase 4 */}
-      <div className="border-t border-[var(--card-border)] bg-white px-6 py-2.5 text-center text-xs text-ink-500">
-        {t("main.phase4_hint")}
-      </div>
-
-      {/* Confirm modal */}
-      {confirm && (
+      {/* Confirm modal (only manual flow uses it; auto-mode skips
+          confirmation since the face match itself is the confirmation.) */}
+      {confirmEmp && (
         <ConfirmModal
-          state={confirm}
+          employee={confirmEmp}
           submitting={checkMut.isPending}
-          onCancel={() => setConfirm(null)}
+          onCancel={() => setConfirmEmp(null)}
           onConfirm={() =>
             checkMut.mutate({
-              employee_id: confirm.employee.id,
-              direction: confirm.direction,
+              employee: confirmEmp,
+              direction: confirmEmp.is_currently_in ? "OUT" : "IN",
+              withSelfie: true,
             })
           }
         />
       )}
 
-      {/* Success overlay */}
       {result && <ResultOverlay result={result} onClose={() => setResult(null)} />}
 
-      {/* Error toast */}
       {errorMsg && (
         <div className="fixed left-1/2 top-6 z-50 inline-flex max-w-md -translate-x-1/2 items-center gap-3 rounded-xl bg-rose-600 px-5 py-3 text-base font-medium text-white shadow-lg ring-1 ring-rose-700">
           <span className="flex-1">{errorMsg}</span>
@@ -306,9 +306,17 @@ export function MainPage() {
           </button>
         </div>
       )}
+
+      {/* Use i18n hook in scope to silence "i18n unused" warning when
+          some consumers strip the language attribute. */}
+      <span data-lang={i18n.language} className="hidden" />
     </div>
   );
 }
+
+/* ================================================================
+ *  Header
+ * ================================================================ */
 
 function Header({
   branchName,
@@ -393,104 +401,118 @@ function LiveClock() {
   }, []);
   return (
     <span className="font-mono text-sm font-semibold tabular-nums text-ink-700">
-      {now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+      {now.toLocaleTimeString(undefined, {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })}
     </span>
   );
 }
 
-function Pane({
-  direction,
-  title,
-  hint,
+/* ================================================================
+ *  Manual sheet (slides up from the bottom)
+ * ================================================================ */
+
+function ManualSheet({
   employees,
-  onPick,
+  search,
+  onSearch,
   loading,
-  lang: _lang,
+  onPick,
+  onClose,
 }: {
-  direction: Direction;
-  title: string;
-  hint: string;
   employees: KioskEmployee[];
-  onPick: (e: KioskEmployee) => void;
+  search: string;
+  onSearch: (s: string) => void;
   loading: boolean;
-  lang: string;
+  onPick: (e: KioskEmployee) => void;
+  onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const isIn = direction === "IN";
 
-  // For each pane only suggest the actionable rows on top, but still show
-  // the rest below greyed-out — operators sometimes want to verify a
-  // teammate's status visually.
+  // Sort: currently-in first (so on-duty employees are easy to find for a
+  // checkout), then alphabetical.
   const sorted = useMemo(() => {
-    const isActionable = (e: KioskEmployee) =>
-      isIn ? !e.is_currently_in : e.is_currently_in;
     return [...employees].sort((a, b) => {
-      const aa = isActionable(a) ? 0 : 1;
-      const bb = isActionable(b) ? 0 : 1;
-      if (aa !== bb) return aa - bb;
+      if (a.is_currently_in !== b.is_currently_in) {
+        return a.is_currently_in ? -1 : 1;
+      }
       return a.full_name.localeCompare(b.full_name);
     });
-  }, [employees, isIn]);
-
-  const actionableCount = sorted.filter((e) =>
-    isIn ? !e.is_currently_in : e.is_currently_in
-  ).length;
+  }, [employees]);
 
   return (
-    <section className={cn("pane", isIn ? "pane-checkin" : "pane-checkout")}>
-      <header className="mb-4 flex items-start justify-between gap-3">
-        <div>
-          <div className="mb-1 flex items-center gap-2">
-            <span className={cn(isIn ? "pill-in" : "pill-out")}>
-              {isIn ? "IN" : "OUT"}
-            </span>
-            <span className="text-xs font-medium text-ink-500">
-              {actionableCount} {t("main.available_short")}
-            </span>
+    <div className="fixed inset-0 z-30 flex flex-col bg-ink-900/40 backdrop-blur-sm">
+      <div
+        className="flex-1"
+        onClick={onClose}
+        aria-hidden
+      />
+      <div className="flex h-[78%] flex-col overflow-hidden rounded-t-3xl border-t border-[var(--card-border)] bg-white shadow-2xl">
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--card-border)] px-6 py-4">
+          <div>
+            <h2 className="text-lg font-bold text-ink-900">
+              {t("main.manual_title")}
+            </h2>
+            <p className="text-xs text-ink-500">{t("main.manual_subtitle")}</p>
           </div>
-          <h2 className="text-2xl font-bold tracking-tight text-ink-900">
-            {title}
-          </h2>
-          <p className="mt-0.5 text-sm text-ink-500">{hint}</p>
-        </div>
-      </header>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl p-2 text-ink-500 hover:bg-ink-100"
+            aria-label="Close"
+          >
+            <X className="size-5" />
+          </button>
+        </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto pr-1 scrollbar-thin">
-        {loading ? (
-          <ul className="grid grid-cols-2 gap-2.5 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <li key={i}>
-                <div className="flex flex-col items-center gap-1.5 rounded-2xl bg-white p-3 ring-1 ring-[var(--card-border)]">
-                  <div className="size-16 animate-pulse rounded-full bg-ink-100" />
-                  <div className="h-3 w-2/3 animate-pulse rounded bg-ink-100" />
-                  <div className="h-2 w-1/2 animate-pulse rounded bg-ink-100" />
-                  <div className="h-3 w-12 animate-pulse rounded-full bg-ink-100" />
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : sorted.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-12 text-center">
-            <span className="flex size-14 items-center justify-center rounded-full bg-ink-100 text-ink-400">
-              <UserRound className="size-7" />
-            </span>
-            <p className="text-sm font-medium text-ink-600">
-              {t("main.no_employees")}
-            </p>
-            <p className="max-w-[260px] text-xs text-ink-400">
-              {t("main.no_employees_hint")}
-            </p>
+        <div className="shrink-0 border-b border-[var(--card-border)] bg-white p-4">
+          <div className="relative">
+            <Search className="pointer-events-none absolute inset-y-0 left-4 my-auto size-5 text-ink-400" />
+            <input
+              type="search"
+              autoFocus
+              className="w-full rounded-xl border-0 bg-ink-50 py-3.5 pl-12 pr-4 text-base ring-1 ring-inset ring-[var(--card-border)] transition placeholder:text-ink-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+              placeholder={t("main.search_placeholder") ?? ""}
+              value={search}
+              onChange={(e) => onSearch(e.target.value)}
+            />
           </div>
-        ) : (
-          <ul className="grid grid-cols-2 gap-2.5 lg:grid-cols-3">
-            {sorted.map((e) => {
-              const actionable = isIn ? !e.is_currently_in : e.is_currently_in;
-              return (
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 scrollbar-thin">
+          {loading ? (
+            <ul className="grid grid-cols-2 gap-2.5 md:grid-cols-3 lg:grid-cols-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <li key={i}>
+                  <div className="flex flex-col items-center gap-1.5 rounded-2xl bg-white p-3 ring-1 ring-[var(--card-border)]">
+                    <div className="size-16 animate-pulse rounded-full bg-ink-100" />
+                    <div className="h-3 w-2/3 animate-pulse rounded bg-ink-100" />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : sorted.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-12 text-center">
+              <span className="flex size-14 items-center justify-center rounded-full bg-ink-100 text-ink-400">
+                <UserRound className="size-7" />
+              </span>
+              <p className="text-sm font-medium text-ink-600">
+                {t("main.no_employees")}
+              </p>
+              <p className="max-w-[260px] text-xs text-ink-400">
+                {t("main.no_employees_hint")}
+              </p>
+            </div>
+          ) : (
+            <ul className="grid grid-cols-2 gap-2.5 md:grid-cols-3 lg:grid-cols-4">
+              {sorted.map((e) => (
                 <li key={e.id}>
                   <button
                     type="button"
                     onClick={() => onPick(e)}
-                    className={cn("emp-card", !actionable && "emp-card-disabled")}
+                    className="emp-card w-full"
                   >
                     <Avatar emp={e} />
                     <p className="line-clamp-2 text-sm font-semibold leading-tight text-ink-900">
@@ -507,62 +529,38 @@ function Pane({
                           : "bg-ink-100 text-ink-500"
                       )}
                     >
-                      {e.is_currently_in ? t("main.currently_in") : t("main.currently_out")}
+                      {e.is_currently_in
+                        ? t("main.currently_in")
+                        : t("main.currently_out")}
                     </span>
                   </button>
                 </li>
-              );
-            })}
-          </ul>
-        )}
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
-    </section>
+    </div>
   );
 }
 
-function Avatar({ emp, large = false }: { emp: KioskEmployee; large?: boolean }) {
-  const sizeCls = large ? "size-20" : "size-16";
-  const textCls = large ? "text-3xl" : "text-2xl";
-  if (emp.photo_url) {
-    return (
-      <img
-        src={emp.photo_url}
-        alt={emp.full_name}
-        className={cn(
-          sizeCls,
-          "shrink-0 rounded-full object-cover ring-2 ring-white shadow-md"
-        )}
-        loading="lazy"
-      />
-    );
-  }
-  const initial = (emp.full_name || "?").trim().charAt(0).toUpperCase();
-  return (
-    <span
-      className={cn(
-        sizeCls,
-        textCls,
-        "flex shrink-0 items-center justify-center rounded-full bg-brand-100 font-semibold text-brand-700 ring-2 ring-white shadow-md"
-      )}
-    >
-      {initial || <UserRound className="size-7" />}
-    </span>
-  );
-}
+/* ================================================================
+ *  Confirm modal
+ * ================================================================ */
 
 function ConfirmModal({
-  state,
+  employee,
   submitting,
   onCancel,
   onConfirm,
 }: {
-  state: ConfirmState;
+  employee: KioskEmployee;
   submitting: boolean;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
   const { t } = useTranslation();
-  const isIn = state.direction === "IN";
+  const isIn = !employee.is_currently_in;
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink-900/60 p-6 backdrop-blur-sm">
       <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-black/5">
@@ -578,17 +576,17 @@ function ConfirmModal({
         </header>
         <div className="p-5">
           <div className="flex items-center gap-4 rounded-2xl border border-[var(--card-border)] bg-ink-50 p-4">
-            <Avatar emp={state.employee} large />
+            <Avatar emp={employee} large />
             <div className="min-w-0">
               <p className="truncate text-lg font-bold text-ink-900">
-                {state.employee.full_name}
+                {employee.full_name}
               </p>
               <p className="truncate text-sm text-ink-500">
-                {state.employee.position ?? state.employee.department_name ?? ""}
+                {employee.position ?? employee.department_name ?? ""}
               </p>
-              {state.employee.employee_code && (
+              {employee.employee_code && (
                 <p className="mt-0.5 truncate font-mono text-[11px] text-ink-400">
-                  {state.employee.employee_code}
+                  {employee.employee_code}
                 </p>
               )}
             </div>
@@ -619,6 +617,10 @@ function ConfirmModal({
     </div>
   );
 }
+
+/* ================================================================
+ *  Success overlay
+ * ================================================================ */
 
 function ResultOverlay({
   result,
@@ -680,3 +682,38 @@ function ResultOverlay({
     </div>
   );
 }
+
+/* ================================================================
+ *  Avatar
+ * ================================================================ */
+
+function Avatar({ emp, large = false }: { emp: KioskEmployee; large?: boolean }) {
+  const sizeCls = large ? "size-20" : "size-16";
+  const textCls = large ? "text-3xl" : "text-2xl";
+  if (emp.photo_url) {
+    return (
+      <img
+        src={emp.photo_url}
+        alt={emp.full_name}
+        className={cn(
+          sizeCls,
+          "shrink-0 rounded-full object-cover ring-2 ring-white shadow-md"
+        )}
+        loading="lazy"
+      />
+    );
+  }
+  const initial = (emp.full_name || "?").trim().charAt(0).toUpperCase();
+  return (
+    <span
+      className={cn(
+        sizeCls,
+        textCls,
+        "flex shrink-0 items-center justify-center rounded-full bg-brand-100 font-semibold text-brand-700 ring-2 ring-white shadow-md"
+      )}
+    >
+      {initial || <UserRound className="size-7" />}
+    </span>
+  );
+}
+
