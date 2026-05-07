@@ -130,8 +130,8 @@ export const CameraPreview = forwardRef<CameraHandle, Props>(
     return (
       <div
         className={cn(
-          "relative overflow-hidden rounded-2xl bg-ink-900 ring-1 ring-ink-200",
-          hidden ? "h-0 w-0 opacity-0" : "aspect-video w-full max-w-md"
+          "camera-frame",
+          hidden ? "h-0 w-0 opacity-0" : "aspect-video w-full"
         )}
       >
         {/* Mirror so the operator sees themselves like a mirror, not a
@@ -171,7 +171,8 @@ export const CameraPreview = forwardRef<CameraHandle, Props>(
         )}
 
         {ready && !error && (
-          <span className="absolute left-2 top-2 rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur">
+          <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur">
+            <span className="size-1.5 rounded-full bg-rose-400 live-dot" />
             {t("camera.live")}
           </span>
         )}

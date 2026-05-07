@@ -2,43 +2,143 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Kiosk fills the screen — disable browser UI niceties that don't help. */
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-tap-highlight-color: transparent;
-  overscroll-behavior: none;
+@layer base {
+  :root {
+    color-scheme: light;
+    --page-bg: #f4f6fb;
+    --card-bg: #ffffff;
+    --card-border: #e5e8f0;
+    --text: #0f172a;
+    --text-muted: #64748b;
+  }
+
+  /* Kiosk lives full-screen on a tablet — disable browser niceties
+     that don't help an attendance terminal: text selection, tap
+     highlight, pinch zoom, etc. */
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+  }
+
+  body {
+    background: var(--page-bg);
+    color: var(--text);
+    font-feature-settings: "cv11", "ss01", "ss02";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 }
 
-body {
-  background: #f4f6fb;
-  color: #11151f;
-}
-
-/* Big tablet-friendly tap targets. */
 @layer components {
+  /* ---------- Buttons (tablet-sized) ---------------------------- */
+  .btn {
+    @apply inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-xl px-5 text-base font-semibold leading-none transition-all duration-150 active:scale-[0.98];
+    @apply disabled:pointer-events-none disabled:opacity-50;
+    min-height: 3rem;
+  }
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-6 py-3 text-base font-semibold text-white shadow-sm transition active:scale-[0.98] hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply btn bg-brand-600 text-white shadow-sm hover:bg-brand-700;
   }
-  .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-base font-medium text-ink-700 ring-1 ring-ink-200 transition hover:bg-ink-50 active:scale-[0.98];
+  .btn-secondary {
+    @apply btn bg-white text-ink-700 ring-1 ring-inset ring-ink-200 hover:bg-ink-50;
   }
+  .btn-danger {
+    @apply btn bg-rose-600 text-white shadow-sm hover:bg-rose-700;
+  }
+
+  /* ---------- Inputs ---------------------------- */
   .input-lg {
-    @apply w-full rounded-xl border border-ink-200 bg-white px-5 py-4 text-lg shadow-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300;
+    @apply block w-full rounded-xl border-0 bg-white px-4 py-3.5 text-lg text-ink-900 ring-1 ring-inset ring-ink-200 shadow-sm transition-colors;
+    @apply placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-brand-500;
   }
-  .panel {
-    @apply flex h-full min-h-0 flex-col rounded-3xl bg-white p-6 shadow-sm ring-1 ring-ink-100;
+
+  /* ---------- Cards (using admin's vocabulary) ---------------------------- */
+  .card {
+    @apply rounded-2xl border border-[var(--card-border)] bg-[var(--card-bg)] shadow-sm;
   }
-  .panel-checkin {
-    @apply ring-2 ring-emerald-200 bg-gradient-to-br from-white to-emerald-50/40;
+
+  /* ---------- Pane (one half of the split screen) ---------------------------- */
+  .pane {
+    @apply flex h-full min-h-0 flex-col rounded-3xl border border-[var(--card-border)] bg-white p-5 shadow-sm;
   }
-  .panel-checkout {
-    @apply ring-2 ring-amber-200 bg-gradient-to-br from-white to-amber-50/40;
+  .pane-checkin {
+    background: linear-gradient(180deg, #ecfdf5 0%, #ffffff 18%);
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.04),
+      0 0 0 1px #a7f3d0;
+  }
+  .pane-checkout {
+    background: linear-gradient(180deg, #fef3c7 0%, #ffffff 18%);
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.04),
+      0 0 0 1px #fde68a;
+  }
+
+  /* ---------- Pane header chip ---------------------------- */
+  .pill {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider;
+  }
+  .pill-in {
+    @apply pill bg-emerald-600 text-white;
+  }
+  .pill-out {
+    @apply pill bg-amber-600 text-white;
+  }
+  .pill-on-duty {
+    @apply pill bg-emerald-100 text-emerald-700;
+  }
+  .pill-off-duty {
+    @apply pill bg-ink-100 text-ink-500;
+  }
+
+  /* ---------- Employee card ---------------------------- */
+  .emp-card {
+    @apply flex w-full flex-col items-center gap-1.5 rounded-2xl bg-white p-3 text-center ring-1 ring-[var(--card-border)] transition-all duration-150;
+    @apply hover:-translate-y-0.5 hover:shadow-lg hover:ring-brand-300 active:scale-[0.97];
+  }
+  .emp-card-disabled {
+    @apply pointer-events-none opacity-50;
+  }
+
+  /* ---------- Toolbar / topbar ---------------------------- */
+  .topbar {
+    @apply flex shrink-0 items-center justify-between gap-3 border-b border-[var(--card-border)] bg-white px-6 py-3;
+  }
+
+  /* ---------- Camera frame ---------------------------- */
+  .camera-frame {
+    @apply relative overflow-hidden rounded-2xl bg-ink-900 ring-1 ring-[var(--card-border)] shadow-md;
+  }
+
+  /* Subtle live indicator pulse so the operator knows the camera is
+     actively running (not frozen). */
+  @keyframes hrp-pulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+  .live-dot {
+    animation: hrp-pulse 1.4s ease-in-out infinite;
+  }
+}
+
+/* Custom scrollbar — admin-web style */
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-ink-300;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
   }
 }

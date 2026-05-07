@@ -200,7 +200,7 @@ export function MainPage() {
   const me = meQ.data;
 
   return (
-    <div className="flex h-full w-full flex-col bg-ink-50">
+    <div className="flex h-full w-full flex-col bg-[var(--page-bg)]">
       <Header
         branchName={me?.branch.name ?? "..."}
         kioskName={me?.kiosk.name ?? "..."}
@@ -209,13 +209,12 @@ export function MainPage() {
         onLogout={handleLogout}
       />
 
-      {/* Camera + search row. Camera lives here so frames can be
-          captured for *any* check-in/out via the shared cameraRef. */}
-      <div className="border-b border-ink-200 bg-white px-6 py-3">
-        <div className="mx-auto flex max-w-5xl flex-col gap-3 md:flex-row md:items-center">
+      {/* Camera + search row */}
+      <div className="border-b border-[var(--card-border)] bg-white px-6 py-4">
+        <div className="mx-auto flex max-w-5xl flex-col gap-4 md:flex-row md:items-center">
           <div className="shrink-0 md:w-72">
             <CameraPreview ref={cameraRef} />
-            <p className="mt-1.5 text-center text-[11px] text-ink-500">
+            <p className="mt-2 text-center text-[11px] font-medium uppercase tracking-wider text-ink-500">
               {t("camera.title")}
             </p>
           </div>
@@ -223,7 +222,7 @@ export function MainPage() {
             <Search className="pointer-events-none absolute inset-y-0 left-4 my-auto size-5 text-ink-400" />
             <input
               type="search"
-              className="w-full rounded-xl border border-ink-200 bg-white py-3 pl-12 pr-4 text-base outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-300"
+              className="w-full rounded-xl border-0 bg-ink-50 py-3.5 pl-12 pr-4 text-base ring-1 ring-inset ring-[var(--card-border)] transition placeholder:text-ink-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
               placeholder={t("main.search_placeholder") ?? ""}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -233,7 +232,7 @@ export function MainPage() {
       </div>
 
       {/* Split panes */}
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 p-4 md:grid-cols-2">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 p-4 md:grid-cols-2 md:p-5">
         <Pane
           direction="IN"
           title={t("main.checkin_title")}
@@ -255,7 +254,7 @@ export function MainPage() {
       </div>
 
       {/* Footer hint about Phase 4 */}
-      <div className="border-t border-ink-200 bg-white px-6 py-2 text-center text-xs text-ink-500">
+      <div className="border-t border-[var(--card-border)] bg-white px-6 py-2.5 text-center text-xs text-ink-500">
         {t("main.phase4_hint")}
       </div>
 
@@ -302,42 +301,49 @@ function Header({
 }) {
   const { t } = useTranslation();
   return (
-    <header className="flex shrink-0 items-center justify-between gap-3 border-b border-ink-200 bg-white px-6 py-3">
-      <div className="flex items-center gap-3">
+    <header className="topbar">
+      <div className="flex min-w-0 items-center gap-3">
         {companyLogo ? (
           <img
             src={companyLogo}
             alt={companyName}
-            className="size-10 rounded-lg object-cover ring-1 ring-ink-200"
+            className="size-11 shrink-0 rounded-xl object-cover ring-1 ring-[var(--card-border)] shadow-sm"
           />
         ) : (
-          <span className="flex size-10 items-center justify-center rounded-lg bg-brand-100 text-brand-700">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-sm">
             <Building2 className="size-5" />
           </span>
         )}
         <div className="min-w-0">
-          <p className="truncate text-base font-semibold leading-tight text-ink-900">
+          <p className="truncate text-base font-bold leading-tight text-ink-900">
             {companyName}
           </p>
-          <p className="truncate text-xs text-ink-500">
-            {t("main.footer_branch")}: {branchName} · {t("main.footer_kiosk")}: {kioskName}
+          <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] text-ink-500">
+            <span className="inline-flex items-center rounded-md bg-ink-100 px-1.5 py-0.5 font-semibold text-ink-700">
+              {branchName}
+            </span>
+            <span className="opacity-60">·</span>
+            <span className="truncate">
+              {t("main.footer_kiosk")}: {kioskName}
+            </span>
           </p>
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <Clock className="size-4 text-ink-400" />
-        <LiveClock />
-        <span className="mx-2 h-6 w-px bg-ink-200" aria-hidden />
+      <div className="flex shrink-0 items-center gap-2">
+        <div className="hidden items-center gap-2 rounded-xl bg-ink-50 px-3 py-1.5 sm:inline-flex">
+          <Clock className="size-4 text-ink-500" />
+          <LiveClock />
+        </div>
         <LangSwitcher />
         <button
           type="button"
           onClick={onLogout}
-          className="ml-2 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium text-ink-500 transition hover:bg-ink-100 hover:text-ink-700"
+          className="ml-1 inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-ink-500 transition hover:bg-rose-50 hover:text-rose-700"
           title={t("main.logout") ?? undefined}
         >
-          <LogOut className="size-3.5" />
-          {t("main.logout")}
+          <LogOut className="size-4" />
+          <span className="hidden sm:inline">{t("main.logout")}</span>
         </button>
       </div>
     </header>
@@ -375,64 +381,60 @@ function Pane({
   lang: string;
 }) {
   const { t } = useTranslation();
-  const palette =
-    direction === "IN"
-      ? "panel-checkin"
-      : "panel-checkout";
+  const isIn = direction === "IN";
 
   // For each pane only suggest the actionable rows on top, but still show
   // the rest below greyed-out — operators sometimes want to verify a
   // teammate's status visually.
   const sorted = useMemo(() => {
     const isActionable = (e: KioskEmployee) =>
-      direction === "IN" ? !e.is_currently_in : e.is_currently_in;
+      isIn ? !e.is_currently_in : e.is_currently_in;
     return [...employees].sort((a, b) => {
       const aa = isActionable(a) ? 0 : 1;
       const bb = isActionable(b) ? 0 : 1;
       if (aa !== bb) return aa - bb;
       return a.full_name.localeCompare(b.full_name);
     });
-  }, [employees, direction]);
+  }, [employees, isIn]);
+
+  const actionableCount = sorted.filter((e) =>
+    isIn ? !e.is_currently_in : e.is_currently_in
+  ).length;
 
   return (
-    <section className={cn("panel", palette)}>
-      <header className="mb-3 flex items-baseline justify-between gap-3">
+    <section className={cn("pane", isIn ? "pane-checkin" : "pane-checkout")}>
+      <header className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-ink-900">{title}</h2>
-          <p className="text-sm text-ink-500">{hint}</p>
+          <div className="mb-1 flex items-center gap-2">
+            <span className={cn(isIn ? "pill-in" : "pill-out")}>
+              {isIn ? "IN" : "OUT"}
+            </span>
+            <span className="text-xs font-medium text-ink-500">
+              {actionableCount} {t("main.available_short")}
+            </span>
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight text-ink-900">
+            {title}
+          </h2>
+          <p className="mt-0.5 text-sm text-ink-500">{hint}</p>
         </div>
-        <span
-          className={cn(
-            "rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider",
-            direction === "IN"
-              ? "bg-emerald-100 text-emerald-700"
-              : "bg-amber-100 text-amber-700"
-          )}
-        >
-          {direction === "IN" ? "IN" : "OUT"}
-        </span>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+      <div className="min-h-0 flex-1 overflow-y-auto pr-1 scrollbar-thin">
         {loading ? (
           <p className="py-8 text-center text-ink-400">{t("main.loading")}</p>
         ) : sorted.length === 0 ? (
           <p className="py-8 text-center text-ink-400">{t("main.no_employees")}</p>
         ) : (
-          <ul className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+          <ul className="grid grid-cols-2 gap-2.5 lg:grid-cols-3">
             {sorted.map((e) => {
-              const actionable = direction === "IN" ? !e.is_currently_in : e.is_currently_in;
+              const actionable = isIn ? !e.is_currently_in : e.is_currently_in;
               return (
                 <li key={e.id}>
                   <button
                     type="button"
                     onClick={() => onPick(e)}
-                    className={cn(
-                      "group flex w-full flex-col items-center gap-1.5 rounded-2xl bg-white p-3 text-center ring-1 transition active:scale-[0.97]",
-                      actionable
-                        ? "ring-ink-200 hover:ring-brand-400 hover:shadow-md"
-                        : "opacity-60 ring-ink-100 hover:opacity-90"
-                    )}
+                    className={cn("emp-card", !actionable && "emp-card-disabled")}
                   >
                     <Avatar emp={e} />
                     <p className="line-clamp-2 text-sm font-semibold leading-tight text-ink-900">
@@ -443,7 +445,7 @@ function Pane({
                     </p>
                     <span
                       className={cn(
-                        "mt-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+                        "mt-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
                         e.is_currently_in
                           ? "bg-emerald-100 text-emerald-700"
                           : "bg-ink-100 text-ink-500"
@@ -462,20 +464,31 @@ function Pane({
   );
 }
 
-function Avatar({ emp }: { emp: KioskEmployee }) {
+function Avatar({ emp, large = false }: { emp: KioskEmployee; large?: boolean }) {
+  const sizeCls = large ? "size-20" : "size-16";
+  const textCls = large ? "text-3xl" : "text-2xl";
   if (emp.photo_url) {
     return (
       <img
         src={emp.photo_url}
         alt={emp.full_name}
-        className="size-16 shrink-0 rounded-full object-cover ring-2 ring-white shadow-sm"
+        className={cn(
+          sizeCls,
+          "shrink-0 rounded-full object-cover ring-2 ring-white shadow-md"
+        )}
         loading="lazy"
       />
     );
   }
   const initial = (emp.full_name || "?").trim().charAt(0).toUpperCase();
   return (
-    <span className="flex size-16 shrink-0 items-center justify-center rounded-full bg-brand-100 text-2xl font-semibold text-brand-700 ring-2 ring-white shadow-sm">
+    <span
+      className={cn(
+        sizeCls,
+        textCls,
+        "flex shrink-0 items-center justify-center rounded-full bg-brand-100 font-semibold text-brand-700 ring-2 ring-white shadow-md"
+      )}
+    >
       {initial || <UserRound className="size-7" />}
     </span>
   );
@@ -495,42 +508,56 @@ function ConfirmModal({
   const { t } = useTranslation();
   const isIn = state.direction === "IN";
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-6 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
-        <h3 className="text-xl font-bold text-ink-900">
-          {isIn ? t("confirm.title_in") : t("confirm.title_out")}
-        </h3>
-        <div className="mt-4 flex items-center gap-3 rounded-2xl bg-ink-50 p-3">
-          <Avatar emp={state.employee} />
-          <div className="min-w-0">
-            <p className="truncate text-base font-semibold text-ink-900">
-              {state.employee.full_name}
-            </p>
-            <p className="truncate text-xs text-ink-500">
-              {state.employee.position ?? state.employee.department_name ?? ""}
-            </p>
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink-900/60 p-6 backdrop-blur-sm">
+      <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-black/5">
+        <header
+          className={cn(
+            "flex items-center gap-2 px-5 py-3",
+            isIn ? "bg-emerald-50" : "bg-amber-50"
+          )}
+        >
+          <span className={cn(isIn ? "pill-in" : "pill-out")}>
+            {isIn ? t("confirm.title_in") : t("confirm.title_out")}
+          </span>
+        </header>
+        <div className="p-5">
+          <div className="flex items-center gap-4 rounded-2xl border border-[var(--card-border)] bg-ink-50 p-4">
+            <Avatar emp={state.employee} large />
+            <div className="min-w-0">
+              <p className="truncate text-lg font-bold text-ink-900">
+                {state.employee.full_name}
+              </p>
+              <p className="truncate text-sm text-ink-500">
+                {state.employee.position ?? state.employee.department_name ?? ""}
+              </p>
+              {state.employee.employee_code && (
+                <p className="mt-0.5 truncate font-mono text-[11px] text-ink-400">
+                  {state.employee.employee_code}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-        <div className="mt-6 flex gap-3">
-          <button
-            type="button"
-            className="btn-ghost flex-1"
-            onClick={onCancel}
-            disabled={submitting}
-          >
-            {t("confirm.cancel")}
-          </button>
-          <button
-            type="button"
-            className={cn(
-              "btn-primary flex-1",
-              !isIn && "bg-amber-600 hover:bg-amber-700"
-            )}
-            onClick={onConfirm}
-            disabled={submitting}
-          >
-            {isIn ? t("confirm.confirm_in") : t("confirm.confirm_out")}
-          </button>
+          <div className="mt-5 flex gap-3">
+            <button
+              type="button"
+              className="btn-secondary flex-1"
+              onClick={onCancel}
+              disabled={submitting}
+            >
+              {t("confirm.cancel")}
+            </button>
+            <button
+              type="button"
+              className={cn(
+                "btn-primary flex-1",
+                !isIn && "bg-amber-600 hover:bg-amber-700"
+              )}
+              onClick={onConfirm}
+              disabled={submitting}
+            >
+              {isIn ? t("confirm.confirm_in") : t("confirm.confirm_out")}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -547,43 +574,53 @@ function ResultOverlay({
   const { t } = useTranslation();
   const isIn = result.direction === "IN";
   const r = result.response;
+  const gradient = isIn
+    ? "bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700"
+    : "bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700";
   return (
     <div
       className={cn(
         "fixed inset-0 z-40 flex flex-col items-center justify-center p-6 text-center",
-        isIn ? "bg-emerald-600/95" : "bg-amber-600/95"
+        gradient
       )}
       onClick={onClose}
     >
-      <div className="flex size-32 items-center justify-center rounded-full bg-white/20 ring-4 ring-white/40">
-        <span className="text-7xl">{isIn ? "✓" : "↓"}</span>
+      <div className="flex size-36 items-center justify-center rounded-full bg-white/20 shadow-xl ring-8 ring-white/30 backdrop-blur">
+        <span className="text-7xl drop-shadow-lg">{isIn ? "✓" : "↓"}</span>
       </div>
-      <h2 className="mt-6 text-4xl font-extrabold text-white drop-shadow">
+      <h2 className="mt-6 text-4xl font-extrabold text-white drop-shadow-lg sm:text-5xl">
         {isIn ? t("result.success_in") : t("result.success_out")}
       </h2>
-      <div className="mt-6 flex items-center gap-4 rounded-2xl bg-white/15 px-6 py-4 backdrop-blur">
-        <Avatar emp={r.employee} />
+      <div className="mt-7 flex items-center gap-5 rounded-3xl bg-white/15 px-7 py-5 shadow-lg ring-1 ring-white/20 backdrop-blur-md">
+        <Avatar emp={r.employee} large />
         <div className="text-left">
-          <p className="text-2xl font-bold text-white">{r.employee.full_name}</p>
-          <p className="text-base text-white/80">
+          <p className="text-2xl font-bold text-white drop-shadow">
+            {r.employee.full_name}
+          </p>
+          <p className="mt-0.5 font-mono text-lg tabular-nums text-white/80">
             {new Date(r.timestamp).toLocaleTimeString(undefined, {
               hour: "2-digit",
               minute: "2-digit",
+              second: "2-digit",
             })}
           </p>
         </div>
       </div>
-      {r.is_late && (
-        <p className="mt-4 rounded-full bg-rose-700/90 px-4 py-2 text-sm font-semibold text-white">
-          {t("result.late", { minutes: r.late_minutes })}
-        </p>
-      )}
-      {r.overtime_minutes > 0 && (
-        <p className="mt-4 rounded-full bg-indigo-700/90 px-4 py-2 text-sm font-semibold text-white">
-          {t("result.overtime", { minutes: r.overtime_minutes })}
-        </p>
-      )}
-      <p className="mt-8 text-sm text-white/70">{t("result.tap_anywhere")}</p>
+      <div className="mt-5 flex flex-wrap justify-center gap-2">
+        {r.is_late && (
+          <span className="rounded-full bg-rose-700/90 px-4 py-2 text-sm font-semibold text-white shadow ring-1 ring-white/20">
+            ⏰ {t("result.late", { minutes: r.late_minutes })}
+          </span>
+        )}
+        {r.overtime_minutes > 0 && (
+          <span className="rounded-full bg-indigo-700/90 px-4 py-2 text-sm font-semibold text-white shadow ring-1 ring-white/20">
+            ⏱ {t("result.overtime", { minutes: r.overtime_minutes })}
+          </span>
+        )}
+      </div>
+      <p className="mt-10 text-sm font-medium text-white/70">
+        {t("result.tap_anywhere")}
+      </p>
     </div>
   );
 }

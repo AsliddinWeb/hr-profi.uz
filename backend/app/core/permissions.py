@@ -43,6 +43,7 @@ ROLE_PERMISSIONS: dict[Role, list[str]] = {
         "leave.*",
         "kpi.*",
         "device.*",
+        "kiosk.*",
         "user.*",
         "audit.read",
         "report.*",
