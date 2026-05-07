@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
@@ -30,7 +31,7 @@ import type {
 export function KiosksListPage() {
   const { t, i18n } = useTranslation();
   const qc = useQueryClient();
-  const [creating, setCreating] = useState(false);
+  const nav = useNavigate();
   const [resetting, setResetting] = useState<Kiosk | null>(null);
   const [credentials, setCredentials] = useState<KioskCreateResponse | null>(null);
 
@@ -71,7 +72,7 @@ export function KiosksListPage() {
         icon={<Tablet className="size-5" />}
         description={t("kiosks.subtitle")}
         actions={
-          <Button type="button" onClick={() => setCreating(true)}>
+          <Button type="button" onClick={() => nav("/app/kiosks/new")}>
             <Plus className="size-4" />
             {t("kiosks.add")}
           </Button>
@@ -88,7 +89,7 @@ export function KiosksListPage() {
             <p className="max-w-md text-xs text-slate-500">
               {t("kiosks.empty_hint")}
             </p>
-            <Button type="button" onClick={() => setCreating(true)}>
+            <Button type="button" onClick={() => nav("/app/kiosks/new")}>
               <Plus className="size-4" />
               {t("kiosks.add")}
             </Button>
@@ -197,18 +198,6 @@ export function KiosksListPage() {
         </div>
       )}
 
-      {creating && (
-        <CreateDialog
-          branches={branchesQ.data?.items ?? []}
-          onClose={() => setCreating(false)}
-          onCreated={(res) => {
-            setCreating(false);
-            setCredentials(res);
-            qc.invalidateQueries({ queryKey: ["kiosks"] });
-          }}
-        />
-      )}
-
       {resetting && (
         <ResetDialog
           kiosk={resetting}
@@ -232,99 +221,6 @@ export function KiosksListPage() {
 }
 
 /* ------------------------------------------------------------------ */
-
-function CreateDialog({
-  branches,
-  onClose,
-  onCreated,
-}: {
-  branches: Branch[];
-  onClose: () => void;
-  onCreated: (r: KioskCreateResponse) => void;
-}) {
-  const { t } = useTranslation();
-  const [name, setName] = useState("");
-  const [branchId, setBranchId] = useState(branches[0]?.id ?? "");
-  const [password, setPassword] = useState("");
-  const [notes, setNotes] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  const submit = async () => {
-    if (!name.trim() || !branchId || password.length < 4) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      const r = await api.post<KioskCreateResponse>("/kiosks", {
-        name: name.trim(),
-        branch_id: branchId,
-        password,
-        notes: notes.trim() || undefined,
-      });
-      onCreated(r.data);
-    } catch (e) {
-      setError(apiErrorMessage(e));
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <Modal title={t("kiosks.create_title")} onClose={onClose}>
-      <div className="space-y-3">
-        <Input
-          label={t("kiosks.field_name") + " *"}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={t("kiosks.field_name_placeholder") ?? ""}
-          required
-        />
-        <div>
-          <label className="label">{t("kiosks.field_branch") + " *"}</label>
-          <select
-            className="input"
-            value={branchId}
-            onChange={(e) => setBranchId(e.target.value)}
-          >
-            {branches.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <Input
-          type="password"
-          label={t("kiosks.field_password") + " *"}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          minLength={4}
-          hint={t("kiosks.field_password_hint") ?? undefined}
-        />
-        <Input
-          label={t("kiosks.field_notes")}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          hint={t("kiosks.field_notes_hint") ?? undefined}
-        />
-        {error && (
-          <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
-            {error}
-          </p>
-        )}
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            {t("common.cancel")}
-          </Button>
-          <Button type="button" onClick={submit} loading={submitting}>
-            <Plus className="size-4" />
-            {t("kiosks.create_submit")}
-          </Button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
 
 function ResetDialog({
   kiosk,

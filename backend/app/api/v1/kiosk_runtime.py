@@ -15,7 +15,7 @@ import asyncio
 from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy import asc, desc, func, or_, select
 
 from app.core.exceptions import (
@@ -163,12 +163,19 @@ async def me(kiosk: CurrentKiosk, db: DbDep) -> KioskMeResponse:
     )
 
 
-@router.post("/heartbeat", status_code=status.HTTP_204_NO_CONTENT)
-async def heartbeat(kiosk: CurrentKiosk, db: DbDep) -> None:
+@router.post("/heartbeat")
+async def heartbeat(kiosk: CurrentKiosk, db: DbDep) -> Response:
     """Lightweight ping — the tablet hits this every minute or so to
-    keep ``last_seen_at`` fresh between full ``/me`` refreshes."""
+    keep ``last_seen_at`` fresh between full ``/me`` refreshes.
+
+    Returns 204 No Content via an explicit ``Response`` object;
+    declaring ``status_code=204`` on the decorator hits FastAPI's
+    "204 must not have a response body" assertion when paired with
+    ``-> None``.
+    """
     kiosk.last_seen_at = datetime.now(timezone.utc)
     await db.commit()
+    return Response(status_code=204)
 
 
 # ---------- Employee directory ----------------------------------------------
