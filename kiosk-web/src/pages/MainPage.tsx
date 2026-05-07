@@ -2,9 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ArrowLeft,
   Building2,
   Clock,
+  DoorOpen,
   Keyboard,
+  LogIn,
   LogOut,
   Search,
   UserRound,
@@ -26,13 +29,27 @@ import type {
   KioskRecognizeResponse,
 } from "@/lib/types";
 
-/* The kiosk's primary mode is *automatic*: the operator stands in
- * front of the camera and the server-side face recognition picks
- * them, decides the direction (CHECK_IN if not currently on duty,
- * CHECK_OUT otherwise) and fires the call. The grid of employees is
- * a fallback for when face matching fails (poor lighting, no enrolled
- * photo, low confidence). It's hidden behind a button so the surface
- * stays calm and self-explanatory. */
+/* Kiosk flow:
+ *
+ *   ┌──────────────┬──────────────┐    The idle screen is the
+ *   │              │              │    operator's home: two
+ *   │    KELISH    │    KETISH    │    huge tappable tiles.
+ *   │   (check-in) │  (check-out) │
+ *   │              │              │
+ *   └──────────────┴──────────────┘
+ *
+ * Tapping a tile transitions ``mode`` from ``idle`` to ``in`` or
+ * ``out``, which mounts the camera, starts the recognize loop, and
+ * shows a cancel button. After a successful match (or a rejection)
+ * the kiosk returns to idle automatically. The camera is *only* alive
+ * while we're scanning — saves CPU + thermals + battery on the tablet
+ * and avoids the privacy/legal weirdness of an always-on camera.
+ *
+ * Direction is taken from the mode the operator selected (not
+ * inferred from ``employee.is_currently_in``), so a kiosk hit by an
+ * already-checked-in person who taps Kelish will get an
+ * "already_checked_in" error from the server — surfaced as a red
+ * overlay. The opposite for Ketish without an active check-in. */
 
 // Recognize loop cadence — at 1.2 s the kiosk feels "instant" without
 // hammering the api worker (face matching is ~80–150 ms per call on a
@@ -50,6 +67,14 @@ const REJECT_AFTER_FAILURES = 3;
 const REJECT_OVERLAY_MS = 3000;
 
 type Direction = "IN" | "OUT";
+type Mode = "idle" | "in" | "out";
+
+// Inactivity timer — if the operator picks IN/OUT but never shows
+// their face, return to idle after this so the camera doesn't stay
+// powered indefinitely.
+const SCAN_TIMEOUT_MS = 30_000;
+// How long the success overlay stays before we return to idle.
+const SUCCESS_DWELL_MS = 4500;
 
 export function MainPage() {
   const { t, i18n } = useTranslation();
@@ -77,6 +102,7 @@ export function MainPage() {
 
   const cameraRef = useRef<CameraHandle | null>(null);
 
+  const [mode, setMode] = useState<Mode>("idle");
   const [manualOpen, setManualOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [confirmEmp, setConfirmEmp] = useState<KioskEmployee | null>(null);
@@ -146,10 +172,15 @@ export function MainPage() {
     },
   });
 
-  // Auto-dismiss the success overlay after 6s.
+  // After a successful check-in/out, leave the green overlay visible
+  // for a moment so the operator can read the time, then drop both
+  // the overlay AND the scanning mode so the kiosk returns to idle.
   useEffect(() => {
     if (!result) return;
-    const id = window.setTimeout(() => setResult(null), 6000);
+    const id = window.setTimeout(() => {
+      setResult(null);
+      setMode("idle");
+    }, SUCCESS_DWELL_MS);
     return () => window.clearTimeout(id);
   }, [result]);
 
@@ -176,10 +207,15 @@ export function MainPage() {
   const lowConfidenceStreakRef = useRef(0);
 
   useEffect(() => {
-    // Pause loop while a confirm modal / overlays / manual sheet are up.
+    // Loop only runs while the operator has explicitly chosen
+    // ``in`` or ``out`` — the camera is mounted at the same time
+    // (see render) so the loop never tries to capture frames from a
+    // detached video element.
+    if (mode === "idle") return;
     if (confirmEmp || result || optimistic || rejectShown || manualOpen) return;
     if (!employeesQ.data?.items?.length) return;
 
+    const direction: Direction = mode === "in" ? "IN" : "OUT";
     let cancelled = false;
 
     async function tick() {
@@ -200,16 +236,16 @@ export function MainPage() {
           const emp = r.data.match.employee;
           const last = cooldownRef.current.get(emp.id) ?? 0;
           if (Date.now() - last < PER_EMPLOYEE_COOLDOWN_MS) {
-            // Cooldown — recognized but already checked in/out recently.
+            // Cooldown — recognised but already checked recently.
+            // Just acknowledge the name and keep the loop running so
+            // the operator's friend can step in next.
             setLastMatchName(emp.full_name);
             return;
           }
           cooldownRef.current.set(emp.id, Date.now());
-          const direction: Direction = emp.is_currently_in ? "OUT" : "IN";
-          // Optimistic: show the green overlay + speak the name THE
-          // INSTANT the match lands. Don't wait for /checkin to come
-          // back — the user already saw their face was recognized,
-          // make the kiosk feel instant.
+          // Optimistic UI: green overlay + voice the moment the match
+          // lands. /checkin runs in parallel and swaps in the final
+          // overlay (with late/overtime pills) when it returns.
           setOptimistic({ employee: emp, direction });
           const firstName = emp.full_name.split(" ")[0] ?? emp.full_name;
           const greeting =
@@ -217,8 +253,6 @@ export function MainPage() {
               ? t("voice.welcome", { name: firstName })
               : t("voice.goodbye", { name: firstName });
           speak(greeting, i18n.language);
-          // Fire the actual write; onSuccess swaps optimistic → result
-          // (with late/overtime info).
           checkMut.mutate({ employee: emp, direction, withSelfie: true });
         } else if (r.data.reason === "low_confidence") {
           lowConfidenceStreakRef.current += 1;
@@ -228,14 +262,10 @@ export function MainPage() {
             speak(t("voice.not_recognized"), i18n.language);
           }
         } else {
-          // no_face_detected / no_enrolled_faces / other — silently
-          // wait for the next tick. Resetting the streak keeps the
-          // rejection counter from accumulating across "no face"
-          // frames (e.g. operator stepped away briefly).
           lowConfidenceStreakRef.current = 0;
         }
       } catch {
-        // Network blip — next tick will retry.
+        // Network blip / aborted — next tick will retry.
       } finally {
         recognizingRef.current = false;
         if (!cancelled) setScanning(false);
@@ -248,6 +278,7 @@ export function MainPage() {
       window.clearInterval(id);
     };
   }, [
+    mode,
     confirmEmp,
     result,
     optimistic,
@@ -259,12 +290,26 @@ export function MainPage() {
     i18n.language,
   ]);
 
-  // Auto-dismiss the rejection overlay.
+  // Auto-dismiss the rejection overlay AND drop back to idle so the
+  // operator can re-tap the right button if they meant to.
   useEffect(() => {
     if (!rejectShown) return;
-    const id = window.setTimeout(() => setRejectShown(false), REJECT_OVERLAY_MS);
+    const id = window.setTimeout(() => {
+      setRejectShown(false);
+      setMode("idle");
+    }, REJECT_OVERLAY_MS);
     return () => window.clearTimeout(id);
   }, [rejectShown]);
+
+  // If the operator taps a tile but never shows their face, we don't
+  // want the camera spinning forever. Bail back to idle after the
+  // timeout — only counts elapsed time *while in scan mode* and resets
+  // each time the operator changes mode.
+  useEffect(() => {
+    if (mode === "idle") return;
+    const id = window.setTimeout(() => setMode("idle"), SCAN_TIMEOUT_MS);
+    return () => window.clearTimeout(id);
+  }, [mode]);
 
   /* ---------- Manual selection helpers ---------------------------- */
 
@@ -292,43 +337,18 @@ export function MainPage() {
         onLogout={handleLogout}
       />
 
-      {/* Hero — big camera + instruction, centered. The whole point of
-          the kiosk is "stand here, you're recognized." Keep the surface
-          calm and the camera unmissable. */}
-      <main className="flex min-h-0 flex-1 items-center justify-center p-5 sm:p-8">
-        <div className="flex w-full max-w-3xl flex-col items-center gap-6">
-          <div className="w-full">
-            <CameraPreview ref={cameraRef} scanning={scanning} />
-          </div>
-
-          <div className="text-center">
-            <p className="text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
-              {scanning
-                ? t("main.scanning_title")
-                : lastMatchName
-                  ? t("main.cooldown_title", { name: lastMatchName })
-                  : t("main.idle_title")}
-            </p>
-            <p className="mx-auto mt-1.5 max-w-md text-sm leading-snug text-ink-500 sm:text-base">
-              {lastMatchName
-                ? t("main.cooldown_hint")
-                : t("main.idle_hint")}
-            </p>
-          </div>
-
-          {/* Manual fallback — small unobtrusive button so the operator
-              can still help themselves if the camera fails or the
-              employee isn't enrolled yet. */}
-          <button
-            type="button"
-            onClick={() => setManualOpen(true)}
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--card-border)] bg-white px-4 py-2 text-sm font-medium text-ink-600 shadow-sm transition hover:border-brand-300 hover:text-brand-700"
-          >
-            <Keyboard className="size-4" />
-            {t("main.manual_button")}
-          </button>
-        </div>
-      </main>
+      {mode === "idle" ? (
+        <IdleSplit onPick={setMode} />
+      ) : (
+        <ScanView
+          mode={mode}
+          cameraRef={cameraRef}
+          scanning={scanning}
+          lastMatchName={lastMatchName}
+          onCancel={() => setMode("idle")}
+          onManual={() => setManualOpen(true)}
+        />
+      )}
 
       {/* Manual selection drawer */}
       {manualOpen && (
@@ -350,15 +370,28 @@ export function MainPage() {
       {confirmEmp && (
         <ConfirmModal
           employee={confirmEmp}
+          // In manual flow we still honour the IN/OUT the operator
+          // already picked on the idle screen; if they came in via the
+          // (rare) idle → manual path with no mode set, fall back to
+          // the employee's current state.
+          direction={mode === "out" ? "OUT" : mode === "in" ? "IN" : confirmEmp.is_currently_in ? "OUT" : "IN"}
           submitting={checkMut.isPending}
           onCancel={() => setConfirmEmp(null)}
-          onConfirm={() =>
+          onConfirm={() => {
+            const direction: Direction =
+              mode === "out"
+                ? "OUT"
+                : mode === "in"
+                  ? "IN"
+                  : confirmEmp.is_currently_in
+                    ? "OUT"
+                    : "IN";
             checkMut.mutate({
               employee: confirmEmp,
-              direction: confirmEmp.is_currently_in ? "OUT" : "IN",
-              withSelfie: true,
-            })
-          }
+              direction,
+              withSelfie: mode !== "idle",
+            });
+          }}
         />
       )}
 
@@ -647,17 +680,19 @@ function ManualSheet({
 
 function ConfirmModal({
   employee,
+  direction,
   submitting,
   onCancel,
   onConfirm,
 }: {
   employee: KioskEmployee;
+  direction: Direction;
   submitting: boolean;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
   const { t } = useTranslation();
-  const isIn = !employee.is_currently_in;
+  const isIn = direction === "IN";
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink-900/60 p-6 backdrop-blur-sm">
       <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-black/5">
@@ -850,3 +885,153 @@ function Avatar({ emp, large = false }: { emp: KioskEmployee; large?: boolean })
   );
 }
 
+/* ================================================================
+ *  Idle split — two huge tappable tiles, Kelish | Ketish
+ * ================================================================ */
+
+function IdleSplit({ onPick }: { onPick: (m: Mode) => void }) {
+  const { t } = useTranslation();
+  return (
+    <main className="grid min-h-0 flex-1 grid-cols-1 gap-4 p-4 md:grid-cols-2 md:gap-5 md:p-6">
+      <IdleTile
+        accent="emerald"
+        title={t("main.tile_in_title")}
+        subtitle={t("main.tile_in_subtitle")}
+        Icon={LogIn}
+        onClick={() => onPick("in")}
+      />
+      <IdleTile
+        accent="amber"
+        title={t("main.tile_out_title")}
+        subtitle={t("main.tile_out_subtitle")}
+        Icon={DoorOpen}
+        onClick={() => onPick("out")}
+      />
+    </main>
+  );
+}
+
+function IdleTile({
+  accent,
+  title,
+  subtitle,
+  Icon,
+  onClick,
+}: {
+  accent: "emerald" | "amber";
+  title: string;
+  subtitle: string;
+  Icon: React.ComponentType<{ className?: string }>;
+  onClick: () => void;
+}) {
+  const colors =
+    accent === "emerald"
+      ? "bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 ring-emerald-300"
+      : "bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 ring-amber-300";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "group relative flex h-full w-full flex-col items-center justify-center gap-6 overflow-hidden rounded-3xl text-white shadow-xl ring-2 transition-all duration-150 active:scale-[0.985]",
+        colors
+      )}
+    >
+      {/* Soft halo behind the icon */}
+      <span className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.18),transparent_60%)] opacity-90" />
+
+      <span className="relative flex size-40 items-center justify-center rounded-full bg-white/15 ring-8 ring-white/20 backdrop-blur-sm transition-transform duration-200 group-hover:scale-105 group-active:scale-95 sm:size-48 md:size-56">
+        <Icon className="size-20 drop-shadow-lg sm:size-24 md:size-28" />
+      </span>
+
+      <div className="relative text-center">
+        <p className="text-4xl font-extrabold tracking-tight drop-shadow-lg sm:text-5xl md:text-6xl">
+          {title}
+        </p>
+        <p className="mt-2 text-base font-medium text-white/85 sm:text-lg">
+          {subtitle}
+        </p>
+      </div>
+    </button>
+  );
+}
+
+/* ================================================================
+ *  Scan view — camera + cancel + manual fallback
+ * ================================================================ */
+
+function ScanView({
+  mode,
+  cameraRef,
+  scanning,
+  lastMatchName,
+  onCancel,
+  onManual,
+}: {
+  mode: Exclude<Mode, "idle">;
+  cameraRef: React.MutableRefObject<CameraHandle | null>;
+  scanning: boolean;
+  lastMatchName: string | null;
+  onCancel: () => void;
+  onManual: () => void;
+}) {
+  const { t } = useTranslation();
+  const isIn = mode === "in";
+  const accentBg = isIn
+    ? "from-emerald-50 via-white to-white"
+    : "from-amber-50 via-white to-white";
+  return (
+    <main
+      className={cn(
+        "flex min-h-0 flex-1 flex-col items-center justify-center bg-gradient-to-b p-5 sm:p-8",
+        accentBg
+      )}
+    >
+      <div className="flex w-full max-w-3xl flex-col items-center gap-5">
+        {/* Top row — cancel + mode badge */}
+        <div className="flex w-full items-center justify-between">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-sm font-medium text-ink-600 shadow-sm ring-1 ring-[var(--card-border)] transition hover:text-ink-900"
+          >
+            <ArrowLeft className="size-4" />
+            {t("scan.cancel")}
+          </button>
+          <span className={isIn ? "pill-in" : "pill-out"}>
+            {isIn ? t("main.tile_in_title") : t("main.tile_out_title")}
+          </span>
+        </div>
+
+        {/* Camera */}
+        <div className="w-full">
+          <CameraPreview ref={cameraRef} scanning={scanning} />
+        </div>
+
+        {/* Instruction */}
+        <div className="text-center">
+          <p className="text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">
+            {scanning
+              ? t("main.scanning_title")
+              : lastMatchName
+                ? t("main.cooldown_title", { name: lastMatchName })
+                : t("main.idle_title")}
+          </p>
+          <p className="mx-auto mt-1.5 max-w-md text-sm leading-snug text-ink-500 sm:text-base">
+            {lastMatchName ? t("main.cooldown_hint") : t("main.idle_hint")}
+          </p>
+        </div>
+
+        {/* Manual fallback */}
+        <button
+          type="button"
+          onClick={onManual}
+          className="inline-flex items-center gap-2 rounded-full border border-[var(--card-border)] bg-white px-4 py-2 text-sm font-medium text-ink-600 shadow-sm transition hover:border-brand-300 hover:text-brand-700"
+        >
+          <Keyboard className="size-4" />
+          {t("main.manual_button")}
+        </button>
+      </div>
+    </main>
+  );
+}

@@ -23,8 +23,12 @@
     "bullet_offline": "Wi-Fi tushsa ham ishlaydi (qayta ulanganda yuboradi)"
   },
   "main": {
+    "tile_in_title": "Kelish",
+    "tile_in_subtitle": "Tugmani bosing va kameraga qarang",
+    "tile_out_title": "Ketish",
+    "tile_out_subtitle": "Tugmani bosing va kameraga qarang",
     "idle_title": "Yuzingizni kameraga ko'rsating",
-    "idle_hint": "Tizim avtomatik aniqlab, kelish yoki ketishingizni belgilaydi.",
+    "idle_hint": "Sizni avtomatik aniqlaymiz va davomatni belgilaymiz.",
     "scanning_title": "Aniqlanmoqda...",
     "cooldown_title": "Salom, {{name}}!",
     "cooldown_hint": "Yana belgilash uchun bir oz kuting (30 sek).",
@@ -60,6 +64,9 @@
     "late": "Kechikish: {{minutes}} daqiqa",
     "overtime": "Qo'shimcha: {{minutes}} daqiqa",
     "tap_anywhere": "Yopish uchun bosing"
+  },
+  "scan": {
+    "cancel": "Orqaga"
   },
   "voice": {
     "welcome": "Xush kelibsiz, {{name}}!",

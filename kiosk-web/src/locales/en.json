@@ -23,8 +23,12 @@
     "bullet_offline": "Survives Wi-Fi drops (syncs back on reconnect)"
   },
   "main": {
+    "tile_in_title": "Check in",
+    "tile_in_subtitle": "Tap and face the camera",
+    "tile_out_title": "Check out",
+    "tile_out_subtitle": "Tap and face the camera",
     "idle_title": "Face the camera",
-    "idle_hint": "The system will recognise you and record your check-in or check-out.",
+    "idle_hint": "We'll recognise you automatically and record your attendance.",
     "scanning_title": "Recognising...",
     "cooldown_title": "Hi, {{name}}!",
     "cooldown_hint": "Next check is available in 30 seconds.",
@@ -60,6 +64,9 @@
     "late": "Late by {{minutes}} min",
     "overtime": "Overtime: {{minutes}} min",
     "tap_anywhere": "Tap anywhere to close"
+  },
+  "scan": {
+    "cancel": "Back"
   },
   "voice": {
     "welcome": "Welcome, {{name}}!",
