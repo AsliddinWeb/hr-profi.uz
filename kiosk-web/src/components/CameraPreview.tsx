@@ -6,7 +6,7 @@ import {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { Camera, CameraOff } from "lucide-react";
+import { Camera, CameraOff, ScanFace } from "lucide-react";
 
 import { cn } from "@/lib/cn";
 
@@ -38,10 +38,13 @@ interface Props {
   /** Hide the live preview but keep the camera running. Used when the
    *  operator has decided privacy is preferred over a self-view. */
   hidden?: boolean;
+  /** True while a recognize request is in flight — shows a subtle
+   *  "scanning" badge so the operator knows the AI loop is alive. */
+  scanning?: boolean;
 }
 
 export const CameraPreview = forwardRef<CameraHandle, Props>(
-  function CameraPreview({ hidden }, ref) {
+  function CameraPreview({ hidden, scanning }, ref) {
     const { t } = useTranslation();
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -171,12 +174,50 @@ export const CameraPreview = forwardRef<CameraHandle, Props>(
         )}
 
         {ready && !error && (
-          <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur">
-            <span className="size-1.5 rounded-full bg-rose-400 live-dot" />
-            {t("camera.live")}
-          </span>
+          <>
+            <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white backdrop-blur">
+              <span className="size-1.5 rounded-full bg-rose-400 live-dot" />
+              {t("camera.live")}
+            </span>
+
+            {/* Face-detection corner brackets — purely cosmetic but
+                they make the camera feel like a face scanner instead of
+                a generic webcam. */}
+            <FaceBrackets />
+
+            {scanning && (
+              <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-brand-600/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white shadow backdrop-blur">
+                <ScanFace className="size-3 animate-pulse" />
+                {t("camera.scanning")}
+              </span>
+            )}
+          </>
         )}
       </div>
     );
   }
 );
+
+/* Decorative L-shaped corner brackets — only visual, no behaviour. They
+ * frame the centre of the preview the way a real face scanner UI would,
+ * which makes the kiosk feel like a face terminal instead of a Zoom call. */
+function FaceBrackets() {
+  return (
+    <svg
+      className="pointer-events-none absolute inset-0"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      aria-hidden
+    >
+      {/* 4 corners of a centered ~60% box */}
+      <path
+        d="M22 28V22h6 M78 28V22h-6 M22 72v6h6 M78 72v6h-6"
+        stroke="white"
+        strokeWidth="0.6"
+        strokeOpacity="0.7"
+        fill="none"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  );
+}

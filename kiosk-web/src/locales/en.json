@@ -3,16 +3,24 @@
     "name": "Hr-Profi Kiosk"
   },
   "login": {
-    "title": "Kiosk login",
-    "subtitle": "Enter the slug and password",
+    "title": "Your attendance tablet",
+    "subtitle": "Effortless check-ins with face recognition. Sign in once — the tablet handles the rest.",
+    "form_title": "Sign in to the kiosk",
+    "form_hint": "Enter slug + password. The token is stored on the tablet and won't be asked again.",
     "slug_label": "Slug",
     "slug_placeholder": "main-entrance",
     "password_label": "Password",
+    "show_password": "Show password",
+    "hide_password": "Hide password",
     "submit": "Sign in",
     "submitting": "Signing in...",
     "wrong_credentials": "Invalid slug or password",
-    "url_hint_title": "Slug from URL",
-    "url_hint_body": "If the page path is `/<slug>`, the field is filled automatically."
+    "url_chip_label": "Slug from URL:",
+    "url_hint_title": "Slug fills automatically",
+    "url_hint_body": "Open kiosk.hr-profi.uz/<slug> and the slug field arrives pre-filled.",
+    "bullet_secure": "Token stays on the tablet — never on a server",
+    "bullet_face": "Face recognition — no spot, no waiting",
+    "bullet_offline": "Survives Wi-Fi drops (syncs back on reconnect)"
   },
   "main": {
     "search_placeholder": "Search by name or code...",
@@ -21,6 +29,7 @@
     "checkin_hint": "Select yourself when arriving",
     "checkout_hint": "Select yourself before leaving",
     "no_employees": "No employees found",
+    "no_employees_hint": "Clear the search or check with your admin",
     "currently_in": "On duty",
     "currently_out": "Off duty",
     "tap_to_select": "Tap to select",
@@ -61,6 +70,7 @@
   "camera": {
     "loading": "Connecting to camera...",
     "live": "Live",
+    "scanning": "Scan",
     "denied": "Camera permission denied",
     "missing": "No camera found",
     "error": "Camera error",

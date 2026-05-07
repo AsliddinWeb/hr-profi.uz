@@ -3,16 +3,24 @@
     "name": "Hr-Profi Kiosk"
   },
   "login": {
-    "title": "Kiosk kirishi",
-    "subtitle": "Slug va parolni kiriting",
+    "title": "Davomat planshetingiz",
+    "subtitle": "Yuz tanish orqali oson kelish va ketish belgilash. Bir martalik kirish, keyin planshet o'zi ishlaydi.",
+    "form_title": "Kioskga kirish",
+    "form_hint": "Slug + parolni kiriting. Token planshetda saqlanib, qayta so'ralmaydi.",
     "slug_label": "Slug",
     "slug_placeholder": "main-entrance",
     "password_label": "Parol",
+    "show_password": "Parolni ko'rsatish",
+    "hide_password": "Parolni yashirish",
     "submit": "Kirish",
     "submitting": "Kirilyapti...",
     "wrong_credentials": "Slug yoki parol noto'g'ri",
-    "url_hint_title": "URL'dan slug",
-    "url_hint_body": "Sahifa havolasi `/<slug>` ko'rinishida bo'lsa, slug avtomatik to'ldiriladi."
+    "url_chip_label": "URL slug:",
+    "url_hint_title": "Slug avtomatik kiritiladi",
+    "url_hint_body": "Manzil `kiosk.hr-profi.uz/<slug>` ko'rinishida bo'lsa, slug maydoni to'ldirilgan holda chiqadi.",
+    "bullet_secure": "Token planshetda mahalliy saqlanadi",
+    "bullet_face": "Yuz tanish — yo'q joylashuv yo'q kechikish",
+    "bullet_offline": "Wi-Fi tushsa ham ishlaydi (qayta ulanganda yuboradi)"
   },
   "main": {
     "search_placeholder": "Ism yoki kod bo'yicha qidirish...",
@@ -21,6 +29,7 @@
     "checkin_hint": "Kelganingizda o'zingizni tanlang",
     "checkout_hint": "Ketishdan oldin o'zingizni tanlang",
     "no_employees": "Hodimlar topilmadi",
+    "no_employees_hint": "Qidiruvni o'chirib ko'ring yoki adminga aloqa qiling",
     "currently_in": "Ishda",
     "currently_out": "Ishda emas",
     "tap_to_select": "Tanlash uchun bosing",
@@ -61,6 +70,7 @@
   "camera": {
     "loading": "Kamera ulanmoqda...",
     "live": "Jonli",
+    "scanning": "Tanish",
     "denied": "Kamera ruxsati berilmagan",
     "missing": "Kamera topilmadi",
     "error": "Kamera xatosi",

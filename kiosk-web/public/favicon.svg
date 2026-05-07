@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2f70ff"/>
+      <stop offset="100%" stop-color="#1a47b8"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="7" fill="url(#bg)"/>
+  <!-- Face-detection brackets (corners) -->
+  <path d="M9 12V9h3M23 12V9h-3M9 20v3h3M23 20v3h-3"
+        stroke="#ffffff" stroke-width="1.8"
+        stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Face silhouette -->
+  <circle cx="16" cy="14.5" r="3" stroke="#ffffff" stroke-width="1.6" fill="none"/>
+  <path d="M11.5 22c1-2.5 3-3.5 4.5-3.5s3.5 1 4.5 3.5"
+        stroke="#ffffff" stroke-width="1.6"
+        stroke-linecap="round" fill="none"/>
+</svg>

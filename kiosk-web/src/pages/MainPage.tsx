@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, Clock, LogOut, Search, UserRound } from "lucide-react";
+import {
+  Building2,
+  Clock,
+  LogOut,
+  Search,
+  UserRound,
+  WifiOff,
+  X,
+} from "lucide-react";
 
 import { api, apiErrorMessage } from "@/lib/api";
 import { cn } from "@/lib/cn";
@@ -127,6 +135,10 @@ export function MainPage() {
   // ``true`` while the loop is mid-call so the interval never overlaps
   // a previous in-flight recognize on slow networks.
   const recognizingRef = useRef(false);
+  // Scanning shows a subtle "AI is looking" badge on the camera so the
+  // operator can tell the loop is alive. Driven from state (not the
+  // ref) so React re-renders.
+  const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
     // Pause the loop while a confirm modal or success overlay is on
@@ -144,6 +156,7 @@ export function MainPage() {
       const frame = cameraRef.current?.captureFrame();
       if (!frame) return;
       recognizingRef.current = true;
+      setScanning(true);
       try {
         const r = await api.post<KioskRecognizeResponse>(
           "/kiosks/me/recognize",
@@ -167,6 +180,7 @@ export function MainPage() {
         // quiet. The loop will retry on the next tick.
       } finally {
         recognizingRef.current = false;
+        if (!cancelled) setScanning(false);
       }
     }
 
@@ -198,6 +212,7 @@ export function MainPage() {
   }
 
   const me = meQ.data;
+  const offline = meQ.isError;
 
   return (
     <div className="flex h-full w-full flex-col bg-[var(--page-bg)]">
@@ -206,6 +221,7 @@ export function MainPage() {
         kioskName={me?.kiosk.name ?? "..."}
         companyName={me?.company.name ?? ""}
         companyLogo={me?.company.logo_url ?? null}
+        offline={offline}
         onLogout={handleLogout}
       />
 
@@ -213,7 +229,7 @@ export function MainPage() {
       <div className="border-b border-[var(--card-border)] bg-white px-6 py-4">
         <div className="mx-auto flex max-w-5xl flex-col gap-4 md:flex-row md:items-center">
           <div className="shrink-0 md:w-72">
-            <CameraPreview ref={cameraRef} />
+            <CameraPreview ref={cameraRef} scanning={scanning} />
             <p className="mt-2 text-center text-[11px] font-medium uppercase tracking-wider text-ink-500">
               {t("camera.title")}
             </p>
@@ -278,8 +294,16 @@ export function MainPage() {
 
       {/* Error toast */}
       {errorMsg && (
-        <div className="fixed left-1/2 top-6 z-50 -translate-x-1/2 rounded-xl bg-rose-600 px-5 py-3 text-base font-medium text-white shadow-lg">
-          {errorMsg}
+        <div className="fixed left-1/2 top-6 z-50 inline-flex max-w-md -translate-x-1/2 items-center gap-3 rounded-xl bg-rose-600 px-5 py-3 text-base font-medium text-white shadow-lg ring-1 ring-rose-700">
+          <span className="flex-1">{errorMsg}</span>
+          <button
+            type="button"
+            onClick={() => setErrorMsg(null)}
+            className="rounded-md p-0.5 text-white/80 hover:bg-white/15 hover:text-white"
+            aria-label="Close"
+          >
+            <X className="size-4" />
+          </button>
         </div>
       )}
     </div>
@@ -291,12 +315,14 @@ function Header({
   kioskName,
   companyName,
   companyLogo,
+  offline,
   onLogout,
 }: {
   branchName: string;
   kioskName: string;
   companyName: string;
   companyLogo: string | null;
+  offline: boolean;
   onLogout: () => void;
 }) {
   const { t } = useTranslation();
@@ -331,6 +357,15 @@ function Header({
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
+        {offline && (
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700 ring-1 ring-rose-200"
+            title={t("offline.title") ?? undefined}
+          >
+            <WifiOff className="size-3.5" />
+            {t("offline.title")}
+          </span>
+        )}
         <div className="hidden items-center gap-2 rounded-xl bg-ink-50 px-3 py-1.5 sm:inline-flex">
           <Clock className="size-4 text-ink-500" />
           <LiveClock />
@@ -422,9 +457,30 @@ function Pane({
 
       <div className="min-h-0 flex-1 overflow-y-auto pr-1 scrollbar-thin">
         {loading ? (
-          <p className="py-8 text-center text-ink-400">{t("main.loading")}</p>
+          <ul className="grid grid-cols-2 gap-2.5 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <li key={i}>
+                <div className="flex flex-col items-center gap-1.5 rounded-2xl bg-white p-3 ring-1 ring-[var(--card-border)]">
+                  <div className="size-16 animate-pulse rounded-full bg-ink-100" />
+                  <div className="h-3 w-2/3 animate-pulse rounded bg-ink-100" />
+                  <div className="h-2 w-1/2 animate-pulse rounded bg-ink-100" />
+                  <div className="h-3 w-12 animate-pulse rounded-full bg-ink-100" />
+                </div>
+              </li>
+            ))}
+          </ul>
         ) : sorted.length === 0 ? (
-          <p className="py-8 text-center text-ink-400">{t("main.no_employees")}</p>
+          <div className="flex flex-col items-center gap-2 py-12 text-center">
+            <span className="flex size-14 items-center justify-center rounded-full bg-ink-100 text-ink-400">
+              <UserRound className="size-7" />
+            </span>
+            <p className="text-sm font-medium text-ink-600">
+              {t("main.no_employees")}
+            </p>
+            <p className="max-w-[260px] text-xs text-ink-400">
+              {t("main.no_employees_hint")}
+            </p>
+          </div>
         ) : (
           <ul className="grid grid-cols-2 gap-2.5 lg:grid-cols-3">
             {sorted.map((e) => {

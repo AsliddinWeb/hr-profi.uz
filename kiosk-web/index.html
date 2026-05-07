@@ -2,16 +2,60 @@
 <html lang="uz">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
     <meta name="theme-color" content="#1a47b8" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- iOS / Android tablet "add to home screen" -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Hr-Profi" />
+
+    <!-- Pre-connect to API + MinIO so the first request doesn't pay TLS handshake -->
+    <link rel="dns-prefetch" href="//api.hr-profi.uz" />
+    <link rel="dns-prefetch" href="//files.hr-profi.uz" />
+
     <title>Hr-Profi Kiosk</title>
+
+    <style>
+      /* Inline pre-paint background so we don't get a white flash before
+         the React bundle finishes loading on slow tablet networks. */
+      html, body { background: #f4f6fb; }
+      .boot-splash {
+        position: fixed; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: linear-gradient(135deg, #2f70ff 0%, #193e94 100%);
+        color: white;
+        font-family: -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+        z-index: 0;
+      }
+      .boot-splash svg { width: 72px; height: 72px; opacity: 0.95; }
+      .boot-splash span {
+        position: absolute; bottom: 30%;
+        font-size: 13px; letter-spacing: 0.08em;
+        opacity: 0.7; text-transform: uppercase;
+      }
+      #root:not(:empty) ~ .boot-splash { display: none; }
+    </style>
   </head>
   <body class="font-sans antialiased">
     <div id="root"></div>
+    <div class="boot-splash" aria-hidden="true">
+      <svg viewBox="0 0 180 180" fill="none">
+        <path d="M55 70V55h15M125 70V55h-15M55 110v15h15M125 110v15h-15"
+              stroke="#ffffff" stroke-width="9"
+              stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <circle cx="90" cy="82" r="17" stroke="#ffffff" stroke-width="8" fill="none"/>
+        <path d="M65 125c5.5-14 16.5-19 25-19s19.5 5 25 19"
+              stroke="#ffffff" stroke-width="8"
+              stroke-linecap="round" fill="none"/>
+      </svg>
+      <span>Hr-Profi Kiosk</span>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

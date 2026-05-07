@@ -3,16 +3,24 @@
     "name": "Hr-Profi Kiosk"
   },
   "login": {
-    "title": "Вход в киоск",
-    "subtitle": "Введите slug и пароль",
+    "title": "Ваш планшет посещаемости",
+    "subtitle": "Простой приход и уход с распознаванием лица. Один раз вошёл — дальше планшет сам.",
+    "form_title": "Вход в киоск",
+    "form_hint": "Введите slug + пароль. Токен сохранится на планшете и больше не запросится.",
     "slug_label": "Slug",
     "slug_placeholder": "main-entrance",
     "password_label": "Пароль",
+    "show_password": "Показать пароль",
+    "hide_password": "Скрыть пароль",
     "submit": "Войти",
     "submitting": "Входим...",
     "wrong_credentials": "Неверный slug или пароль",
-    "url_hint_title": "Slug из URL",
-    "url_hint_body": "Если адрес страницы вида `/<slug>`, поле заполнится автоматически."
+    "url_chip_label": "Slug из URL:",
+    "url_hint_title": "Slug подставится автоматически",
+    "url_hint_body": "Если открыли `kiosk.hr-profi.uz/<slug>`, поле slug будет заполнено.",
+    "bullet_secure": "Токен хранится только на планшете",
+    "bullet_face": "Распознавание лица — без места без задержек",
+    "bullet_offline": "Работает при обрыве Wi-Fi (отправит при восстановлении)"
   },
   "main": {
     "search_placeholder": "Поиск по имени или коду...",
@@ -21,6 +29,7 @@
     "checkin_hint": "Выберите себя при приходе",
     "checkout_hint": "Выберите себя перед уходом",
     "no_employees": "Сотрудники не найдены",
+    "no_employees_hint": "Очистите поиск или обратитесь к админу",
     "currently_in": "На работе",
     "currently_out": "Не на работе",
     "tap_to_select": "Нажмите, чтобы выбрать",
@@ -61,6 +70,7 @@
   "camera": {
     "loading": "Подключение к камере...",
     "live": "В эфире",
+    "scanning": "Скан",
     "denied": "Доступ к камере запрещён",
     "missing": "Камера не найдена",
     "error": "Ошибка камеры",

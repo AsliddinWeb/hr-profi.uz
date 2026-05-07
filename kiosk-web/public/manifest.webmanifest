@@ -1,0 +1,25 @@
+{
+  "name": "Hr-Profi Kiosk",
+  "short_name": "Hr-Profi",
+  "description": "Tablet attendance kiosk with face recognition",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#1a47b8",
+  "theme_color": "#1a47b8",
+  "lang": "uz",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "/apple-touch-icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "180x180",
+      "purpose": "any maskable"
+    }
+  ]
+}
