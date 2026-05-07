@@ -43,8 +43,13 @@ api_router.include_router(bonuses.router)
 api_router.include_router(leaves.router)
 api_router.include_router(kpi.router)
 api_router.include_router(devices.router)
-api_router.include_router(kiosks.router)
+# Kiosk runtime endpoints (``/kiosks/me/*``) MUST be registered before
+# the admin CRUD router. Both share the ``/kiosks`` prefix, and the
+# admin's ``GET /kiosks/{kiosk_id}`` would otherwise capture
+# ``GET /kiosks/me`` (matching ``kiosk_id="me"``) and immediately fail
+# the User-typed dep with a 401, even though the kiosk JWT is valid.
 api_router.include_router(kiosk_runtime.router)
+api_router.include_router(kiosks.router)
 api_router.include_router(notifications.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(plans.router)
