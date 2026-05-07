@@ -308,7 +308,12 @@ export interface DashboardSummary {
 // Attendance --------------------------------------------------------------
 
 export type CheckType = "CHECK_IN" | "CHECK_OUT";
-export type AttendanceMethod = "MOBILE_APP" | "FACE_DEVICE" | "QR_CODE" | "MANUAL";
+export type AttendanceMethod =
+  | "MOBILE_APP"
+  | "FACE_DEVICE"
+  | "KIOSK_TABLET"
+  | "QR_CODE"
+  | "MANUAL";
 export type AttendanceRecordStatus = "VALID" | "SUSPICIOUS" | "REJECTED";
 
 export interface AttendanceRecord {

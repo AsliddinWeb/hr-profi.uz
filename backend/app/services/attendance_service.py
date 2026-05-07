@@ -16,10 +16,12 @@ import logging
 from datetime import date, datetime, time, timedelta, timezone
 from math import asin, cos, radians, sin, sqrt
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import and_, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.core.exceptions import ConflictError, NotFoundError
 from app.models.attendance import (
     AttendanceMethod,
@@ -34,6 +36,14 @@ from app.models.user import User
 from app.schemas.attendance import CheckInRequest, TodayStatus
 
 logger = logging.getLogger(__name__)
+
+# Local timezone used for shift comparisons. ``ShiftTemplate.start_time``
+# / ``end_time`` are naive ``time`` columns interpreted as Tashkent
+# local — not UTC. Without this conversion, a 09:00 shift was being
+# treated as 09:00 UTC (= 14:00 local in Tashkent UTC+5), so a real
+# 16:10 check-in was reported as "130 minutes late" instead of "early
+# by 110 minutes" or whatever the real comparison should be.
+TZ_LOCAL = ZoneInfo(settings.tz)
 
 
 def _maybe_upload_selfie(
@@ -250,7 +260,10 @@ async def check_in_for_employee(
         raise ConflictError("attendance.already_checked_in")
 
     now = datetime.now(timezone.utc)
-    today = now.date()
+    # Local time for *shift comparisons* (start_time / end_time live in
+    # local Tashkent time, naive). UTC stays for the stored timestamp.
+    now_local = now.astimezone(TZ_LOCAL)
+    today = now_local.date()
     await _block_if_on_leave(db, emp.id, today)
 
     sched, tpl = await _scheduled_shift(db, emp.id, today)
@@ -266,8 +279,8 @@ async def check_in_for_employee(
         ).scalar_one_or_none()
     is_late, late_minutes = False, 0
     if tpl and tpl.start_time is not None:
-        scheduled_dt = datetime.combine(today, tpl.start_time, tzinfo=timezone.utc)
-        diff = (now - scheduled_dt).total_seconds() / 60
+        scheduled_local = datetime.combine(today, tpl.start_time, tzinfo=TZ_LOCAL)
+        diff = (now_local - scheduled_local).total_seconds() / 60
         if diff > 0:
             late_minutes = int(diff)
             # Late grace per company settings would go here; for Phase 2 a
@@ -381,15 +394,16 @@ async def check_out_for_employee(
         raise ConflictError("attendance.no_active_check_in")
 
     now = datetime.now(timezone.utc)
-    today = now.date()
+    now_local = now.astimezone(TZ_LOCAL)
+    today = now_local.date()
     await _block_if_on_leave(db, emp.id, today)
     _, tpl = await _scheduled_shift(db, emp.id, today)
 
     overtime_minutes = 0
     is_early_leave = False
     if tpl and tpl.end_time is not None:
-        scheduled_end = datetime.combine(today, tpl.end_time, tzinfo=timezone.utc)
-        diff_min = (now - scheduled_end).total_seconds() / 60
+        scheduled_end_local = datetime.combine(today, tpl.end_time, tzinfo=TZ_LOCAL)
+        diff_min = (now_local - scheduled_end_local).total_seconds() / 60
         if diff_min > 0 and tpl.allow_overtime:
             overtime_minutes = int(diff_min)
         elif diff_min < 0:

@@ -14,6 +14,7 @@ import {
   ScanFace,
   Search,
   Smartphone,
+  Tablet,
   TrendingUp,
 } from "lucide-react";
 
@@ -39,6 +40,7 @@ import { initialsOf } from "./utils";
 const METHOD_ICON: Record<AttendanceMethod, React.ComponentType<{ className?: string }>> = {
   MOBILE_APP: Smartphone,
   FACE_DEVICE: ScanFace,
+  KIOSK_TABLET: Tablet,
   QR_CODE: QrCode,
   MANUAL: FileEdit,
 };

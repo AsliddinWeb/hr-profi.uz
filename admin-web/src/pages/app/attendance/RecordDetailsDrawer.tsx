@@ -15,6 +15,7 @@ import {
   Smartphone,
   Sparkles,
   StickyNote,
+  Tablet,
   Target,
   Trash2,
   TrendingUp,
@@ -38,6 +39,7 @@ import type {
 const METHOD_ICON: Record<AttendanceMethod, React.ComponentType<{ className?: string }>> = {
   MOBILE_APP: Smartphone,
   FACE_DEVICE: ScanFace,
+  KIOSK_TABLET: Tablet,
   QR_CODE: QrCode,
   MANUAL: FileEdit,
 };

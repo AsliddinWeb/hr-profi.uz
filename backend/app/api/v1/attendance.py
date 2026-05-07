@@ -268,15 +268,48 @@ async def reject_record(
     user: CurrentUser,
     db: DbDep,
     tenant: TenantId,
+    hard: bool = False,
 ) -> MessageResponse:
-    """Soft-reject a record (sets status=REJECTED) — payroll skips REJECTED
-    rows. Hard delete would lose the audit signal."""
+    """Reject (soft-default) or hard-delete an attendance record.
+
+    Default: ``status = REJECTED`` so payroll skips it but the audit
+    trail keeps a row.
+
+    ``?hard=true``: row is fully removed. Use for kiosk mis-fires / bad
+    test data the customer doesn't want lingering in their reports.
+    The audit log still gets a ``attendance.delete`` event with the
+    snapshotted employee/timestamp/method so the action is traceable
+    even after the underlying row is gone.
+    """
     _company_id(user, tenant)
     rec = (
         await db.execute(select(AttendanceRecord).where(AttendanceRecord.id == record_id))
     ).scalar_one_or_none()
     if not rec:
         raise NotFoundError("attendance.record_not_found")
+
+    if hard:
+        snapshot = {
+            "employee_id": str(rec.employee_id),
+            "timestamp": rec.timestamp.isoformat() if rec.timestamp else None,
+            "method": rec.method.value if hasattr(rec.method, "value") else str(rec.method),
+            "check_type": rec.check_type.value if hasattr(rec.check_type, "value") else str(rec.check_type),
+        }
+        await db.delete(rec)
+        await db.commit()
+        await audit_service.record(
+            db,
+            action="attendance.delete",
+            actor_id=user.id,
+            actor_role=user.role,
+            company_id=rec.company_id,
+            resource_type="attendance",
+            resource_id=record_id,
+            payload=snapshot,
+            commit=True,
+        )
+        return MessageResponse(message="deleted")
+
     rec.status = AttendanceStatus.REJECTED
     await db.commit()
     await audit_service.record(

@@ -404,6 +404,9 @@
     "live_detail_no_records_hint": "Bugun hech qanday kelish yoki ketish belgilanmagan.",
     "live_detail_late_warning": "Bugun {{minutes}} daqiqa kech keldi.",
     "live_no_selfie": "Rasm yo'q",
+    "delete_record": "O'chirish",
+    "delete_confirm": "Bu yozuvni butunlay o'chirishni hohlaysizmi? Bu amalni qaytarib bo'lmaydi.",
+    "delete_success": "Yozuv o'chirildi",
 
     "col_days": "Kunlar",
     "col_hours": "Soat",
@@ -1637,6 +1640,7 @@
     "attendance_method": {
       "MOBILE_APP": "Mobil ilova",
       "FACE_DEVICE": "Yuz qurilmasi",
+      "KIOSK_TABLET": "Planshet kioski",
       "QR_CODE": "QR kod",
       "MANUAL": "Qo'lda"
     },

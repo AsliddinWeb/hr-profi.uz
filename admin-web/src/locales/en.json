@@ -403,6 +403,9 @@
     "live_detail_no_records_hint": "No check-ins or check-outs recorded for today.",
     "live_detail_late_warning": "Was {{minutes}} min late today.",
     "live_no_selfie": "No photo",
+    "delete_record": "Delete",
+    "delete_confirm": "Permanently delete this record? This cannot be undone.",
+    "delete_success": "Record deleted",
 
     "col_days": "Days",
     "col_hours": "Hours",
@@ -1636,6 +1639,7 @@
     "attendance_method": {
       "MOBILE_APP": "Mobile app",
       "FACE_DEVICE": "Face device",
+      "KIOSK_TABLET": "Kiosk tablet",
       "QR_CODE": "QR code",
       "MANUAL": "Manual"
     },

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import {
   Camera,
   Clock,
@@ -11,10 +12,12 @@ import {
   QrCode,
   ScanFace,
   Smartphone,
+  Tablet,
+  Trash2,
   TrendingUp,
 } from "lucide-react";
 
-import { api } from "@/lib/api";
+import { api, apiErrorMessage } from "@/lib/api";
 import { Badge } from "@/components/ui/Badge";
 import { Dialog } from "@/components/ui/Dialog";
 import { useEnumLabel } from "@/lib/enum";
@@ -31,6 +34,7 @@ import { fmtHM, fmtTime, initialsOf } from "./utils";
 const METHOD_ICON: Record<AttendanceMethod, React.ComponentType<{ className?: string }>> = {
   MOBILE_APP: Smartphone,
   FACE_DEVICE: ScanFace,
+  KIOSK_TABLET: Tablet,
   QR_CODE: QrCode,
   MANUAL: FileEdit,
 };
@@ -49,6 +53,17 @@ interface Props {
 export function LiveCardDetailsDialog({ open, row, date, onClose }: Props) {
   const { t, i18n } = useTranslation();
   const label = useEnumLabel();
+  const qc = useQueryClient();
+
+  const deleteMut = useMutation({
+    mutationFn: async (recordId: string) =>
+      api.delete(`/attendance/records/${recordId}`, { params: { hard: true } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["attendance"] });
+      toast.success(t("attendance.delete_success"));
+    },
+    onError: (e) => toast.error(apiErrorMessage(e)),
+  });
 
   const dayIso = useMemo(() => {
     if (date) return date;
@@ -195,6 +210,12 @@ export function LiveCardDetailsDialog({ open, row, date, onClose }: Props) {
                   hasNext={idx < records.length - 1}
                   label={label}
                   t={t}
+                  onDelete={() => {
+                    if (window.confirm(t("attendance.delete_confirm"))) {
+                      deleteMut.mutate(r.id);
+                    }
+                  }}
+                  deleting={deleteMut.isPending}
                 />
               ))}
             </ol>
@@ -212,6 +233,8 @@ function RecordRow({
   hasNext,
   label,
   t,
+  onDelete,
+  deleting,
 }: {
   record: AttendanceRecord;
   locale: string;
@@ -219,6 +242,8 @@ function RecordRow({
   hasNext: boolean;
   label: ReturnType<typeof useEnumLabel>;
   t: (k: string, opts?: Record<string, unknown>) => string;
+  onDelete: () => void;
+  deleting: boolean;
 }) {
   const Icon = METHOD_ICON[record.method] ?? FileEdit;
   const isIn = record.check_type === "CHECK_IN";
@@ -314,6 +339,21 @@ function RecordRow({
           {record.notes && (
             <p className="mt-1 text-[11px] text-slate-600">{record.notes}</p>
           )}
+
+          {/* Delete (hard) — for kiosk mis-fires / bad data the
+              customer doesn't want kept around. Soft-reject is still
+              available via the existing flow elsewhere. */}
+          <div className="mt-2">
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={deleting}
+              className="inline-flex items-center gap-1 rounded-md border border-rose-200 bg-white px-2 py-1 text-[11px] font-medium text-rose-700 transition hover:bg-rose-50 disabled:opacity-50"
+            >
+              <Trash2 className="size-3" />
+              {t("attendance.delete_record")}
+            </button>
+          </div>
         </div>
 
         {/* Selfie */}

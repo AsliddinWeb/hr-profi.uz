@@ -403,6 +403,9 @@
     "live_detail_no_records_hint": "За сегодня нет ни одной отметки.",
     "live_detail_late_warning": "Сегодня опоздал на {{minutes}} мин.",
     "live_no_selfie": "Без фото",
+    "delete_record": "Удалить",
+    "delete_confirm": "Удалить эту запись полностью? Действие необратимо.",
+    "delete_success": "Запись удалена",
 
     "col_days": "Дни",
     "col_hours": "Часы",
@@ -1636,6 +1639,7 @@
     "attendance_method": {
       "MOBILE_APP": "Мобильное приложение",
       "FACE_DEVICE": "Face ID устройство",
+      "KIOSK_TABLET": "Планшет-киоск",
       "QR_CODE": "QR-код",
       "MANUAL": "Вручную"
     },
