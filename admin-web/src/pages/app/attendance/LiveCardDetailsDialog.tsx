@@ -29,7 +29,7 @@ import type {
   Page,
 } from "@/lib/types";
 
-import { fmtHM, fmtTime, initialsOf } from "./utils";
+import { fmtDurationShort, fmtHM, fmtTime, initialsOf } from "./utils";
 
 const METHOD_ICON: Record<AttendanceMethod, React.ComponentType<{ className?: string }>> = {
   MOBILE_APP: Smartphone,
@@ -164,7 +164,7 @@ export function LiveCardDetailsDialog({ open, row, date, onClose }: Props) {
           <Tile
             icon={<TrendingUp className="size-3 text-emerald-600" />}
             label={t("attendance.live_overtime")}
-            value={row.overtime_minutes > 0 ? `+${row.overtime_minutes}m` : "—"}
+            value={row.overtime_minutes > 0 ? `+${fmtDurationShort(row.overtime_minutes)}` : "—"}
           />
         </div>
 
@@ -300,13 +300,13 @@ function RecordRow({
             {record.late_minutes > 0 && (
               <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-1.5 py-0.5 font-semibold text-amber-700 ring-1 ring-amber-200">
                 <Clock className="size-3" />
-                +{record.late_minutes}m {t("attendance.live_late")}
+                +{fmtDurationShort(record.late_minutes)} {t("attendance.live_late")}
               </span>
             )}
             {record.overtime_minutes > 0 && (
               <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 font-semibold text-emerald-700 ring-1 ring-emerald-200">
                 <TrendingUp className="size-3" />
-                +{record.overtime_minutes}m {t("attendance.live_overtime")}
+                +{fmtDurationShort(record.overtime_minutes)} {t("attendance.live_overtime")}
               </span>
             )}
             {record.face_match_score && (

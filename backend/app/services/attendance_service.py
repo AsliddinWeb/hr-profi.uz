@@ -572,6 +572,20 @@ async def today_status(db: AsyncSession, user: User) -> TodayStatus:
         leave_type_name = lt.name
         leave_end_date = lr.end_date
 
+    # Pull the company toggle so the PWA knows whether to render the
+    # IN/OUT buttons. Defaults to True if the key is absent (the
+    # admin's settings UI seeds it).
+    from app.models.company import Company as _Company
+
+    company = (
+        await db.execute(
+            select(_Company)
+            .where(_Company.id == emp.company_id)
+            .execution_options(skip_tenant_filter=True)
+        )
+    ).scalar_one()
+    pwa_enabled = bool((company.settings or {}).get("pwa_checkin_enabled", True))
+
     return TodayStatus(
         last_check_in=last_in,
         last_check_out=last_out,
@@ -580,6 +594,7 @@ async def today_status(db: AsyncSession, user: User) -> TodayStatus:
         on_leave=on_leave,
         leave_type_name=leave_type_name,
         leave_end_date=leave_end_date,
+        pwa_checkin_enabled=pwa_enabled,
     )
 
 

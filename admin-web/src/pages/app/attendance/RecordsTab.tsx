@@ -35,7 +35,7 @@ import type {
 } from "@/lib/types";
 
 import { RecordDetailsDrawer } from "./RecordDetailsDrawer";
-import { initialsOf } from "./utils";
+import { fmtDurationShort, initialsOf } from "./utils";
 
 const METHOD_ICON: Record<AttendanceMethod, React.ComponentType<{ className?: string }>> = {
   MOBILE_APP: Smartphone,
@@ -377,7 +377,7 @@ export function RecordsTab() {
                       r.late_minutes > 0 ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800 ring-1 ring-amber-200">
                           <Clock className="size-3" />
-                          +{r.late_minutes}m {t("attendance.live_late")}
+                          +{fmtDurationShort(r.late_minutes)} {t("attendance.live_late")}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-emerald-200">
@@ -388,7 +388,7 @@ export function RecordsTab() {
                     ) : r.overtime_minutes > 0 ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-200">
                         <TrendingUp className="size-3" />
-                        +{r.overtime_minutes}m {t("attendance.live_overtime")}
+                        +{fmtDurationShort(r.overtime_minutes)} {t("attendance.live_overtime")}
                       </span>
                     ) : r.is_early_leave ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-800 ring-1 ring-rose-200">

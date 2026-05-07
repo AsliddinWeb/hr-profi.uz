@@ -22,6 +22,18 @@ export function fmtHM(min: number | null | undefined): string {
   return `${h}:${String(m).padStart(2, "0")}`;
 }
 
+/** Compact "1h 30m" / "45m" out of an integer minutes count. Used on
+ * late/overtime pills so users don't have to mentally convert "+130m"
+ * into "+2h 10m". Always non-negative. */
+export function fmtDuration(min: number | null | undefined): string {
+  if (min == null || !Number.isFinite(min)) return "—";
+  const total = Math.max(0, Math.round(min));
+  if (total < 60) return `${total}m`;
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
 /** "HH:MM" out of a backend ``time`` string ("09:00:00" → "09:00"). */
 export function fmtTime(t: string | null | undefined): string {
   if (!t) return "—";

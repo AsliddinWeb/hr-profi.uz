@@ -22,7 +22,7 @@ import type {
   PeriodWithEmployee,
 } from "@/lib/types";
 
-import { fmtHM, initialsOf } from "./utils";
+import { fmtDurationShort, fmtHM, initialsOf } from "./utils";
 
 function fmtMoney(n: number | string | null | undefined): string {
   if (n == null || n === "") return "—";
@@ -350,7 +350,7 @@ export function MonthlyTab() {
                       r.late_minutes > 0 && "font-semibold text-amber-700"
                     )}
                   >
-                    {r.late_minutes > 0 ? `${r.late_minutes}m` : "—"}
+                    {r.late_minutes > 0 ? fmtDurationShort(r.late_minutes) : "—"}
                   </TD>
                   <TD
                     className={cn(
@@ -358,7 +358,7 @@ export function MonthlyTab() {
                       r.overtime_minutes > 0 && "font-semibold text-emerald-700"
                     )}
                   >
-                    {r.overtime_minutes > 0 ? `${r.overtime_minutes}m` : "—"}
+                    {r.overtime_minutes > 0 ? fmtDurationShort(r.overtime_minutes) : "—"}
                   </TD>
                   <TD className="text-right tabular-nums text-slate-600">
                     {r.rest_days_planned}

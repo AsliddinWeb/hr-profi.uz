@@ -70,6 +70,10 @@ class TodayStatus(BaseModel):
     on_leave: bool = False
     leave_type_name: str | None = None
     leave_end_date: "date | None" = None
+    # Mirrors ``Company.settings.pwa_checkin_enabled`` so the mobile
+    # PWA can hide its IN/OUT buttons when the company has disabled
+    # this channel — without a second roundtrip just for the toggle.
+    pwa_checkin_enabled: bool = True
 
 
 class AttendanceUpdate(BaseModel):

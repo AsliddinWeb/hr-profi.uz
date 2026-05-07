@@ -29,7 +29,7 @@ import { api, apiErrorMessage } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth-store";
 import { getCurrentPosition } from "@/lib/geo";
 import { cn } from "@/lib/cn";
-import { fmtMoneyZero } from "@/lib/format";
+import { fmtDuration, fmtMoneyZero } from "@/lib/format";
 import { setThemeMode, useThemeMode, type ThemeMode } from "@/lib/theme";
 import {
   enqueueCheckin,
@@ -69,6 +69,7 @@ interface TodayStatus {
   on_leave?: boolean;
   leave_type_name?: string | null;
   leave_end_date?: string | null;
+  pwa_checkin_enabled?: boolean;
 }
 
 type Mode = "in" | "out";
@@ -247,6 +248,11 @@ export default function TodayPage() {
     );
   const isWorking = status?.is_working ?? false;
   const onLeave = status?.on_leave ?? false;
+  // Mirrors the company's "Davomat usullari" → PWA toggle. Defaults to
+  // true while the snapshot is loading so the button doesn't flash
+  // hidden then back on. Only the actual ``false`` from the server
+  // means "disabled".
+  const pwaEnabled = status?.pwa_checkin_enabled !== false;
   const now = new Date();
 
   const unreadQ = useQuery({
@@ -375,6 +381,16 @@ export default function TodayPage() {
             </div>
           </div>
         </div>
+      ) : !pwaEnabled ? (
+        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+          <Sparkles className="mt-0.5 size-5 shrink-0 text-amber-600" />
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-bold">{t("today.pwa_disabled_title")}</div>
+            <div className="mt-0.5 text-xs text-amber-800/80">
+              {t("today.pwa_disabled_hint")}
+            </div>
+          </div>
+        </div>
       ) : isWorking ? (
         <button
           type="button"
@@ -397,7 +413,7 @@ export default function TodayPage() {
         </button>
       )}
 
-      {!onLeave && (
+      {!onLeave && pwaEnabled && (
         <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] text-slate-500">
           <Camera className="mr-1 inline size-3" /> {t("today.camera_required")}
           <br />
@@ -474,17 +490,17 @@ export default function TodayPage() {
                     <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
                       {r.is_late && (
                         <span className="rounded-full bg-amber-100 px-1.5 py-0.5 font-semibold text-amber-800">
-                          +{r.late_minutes}m late
+                          ⏰ {fmtDuration(r.late_minutes)} {t("today.tag_late")}
                         </span>
                       )}
                       {r.overtime_minutes > 0 && (
                         <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 font-semibold text-emerald-800">
-                          +{r.overtime_minutes}m OT
+                          ⏱ {fmtDuration(r.overtime_minutes)} {t("today.tag_overtime")}
                         </span>
                       )}
                       {r.status === "SUSPICIOUS" && (
                         <span className="rounded-full bg-amber-100 px-1.5 py-0.5 font-semibold text-amber-800">
-                          ⚠ suspicious
+                          ⚠ {t("today.tag_suspicious")}
                         </span>
                       )}
                       {r.latitude != null && (
