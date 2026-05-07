@@ -168,7 +168,7 @@ export function MainPage() {
       setErrorMsg(apiErrorMessage(e, t("errors.generic")));
       // Audible fail too — operator knows immediately something went
       // wrong without staring at the screen.
-      speak(t("voice.error"), i18n.language);
+      speak("Failed", "en");
     },
   });
 
@@ -246,20 +246,22 @@ export function MainPage() {
           // Optimistic UI: green overlay + voice the moment the match
           // lands. /checkin runs in parallel and swaps in the final
           // overlay (with late/overtime pills) when it returns.
+          //
+          // Voice is intentionally English regardless of the UI
+          // language — most installed TTS engines speak English well,
+          // and a curt "Thank you, {name}" reads cleanly in a noisy
+          // office whatever the operator's locale is. Long localised
+          // sentences sound robotic.
           setOptimistic({ employee: emp, direction });
           const firstName = emp.full_name.split(" ")[0] ?? emp.full_name;
-          const greeting =
-            direction === "IN"
-              ? t("voice.welcome", { name: firstName })
-              : t("voice.goodbye", { name: firstName });
-          speak(greeting, i18n.language);
+          speak(`Thank you, ${firstName}`, "en");
           checkMut.mutate({ employee: emp, direction, withSelfie: true });
         } else if (r.data.reason === "low_confidence") {
           lowConfidenceStreakRef.current += 1;
           if (lowConfidenceStreakRef.current >= REJECT_AFTER_FAILURES) {
             lowConfidenceStreakRef.current = 0;
             setRejectShown(true);
-            speak(t("voice.not_recognized"), i18n.language);
+            speak("Try again", "en");
           }
         } else {
           lowConfidenceStreakRef.current = 0;

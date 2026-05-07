@@ -24,6 +24,10 @@ class CheckType(StrEnum):
 class AttendanceMethod(StrEnum):
     MOBILE_APP = "MOBILE_APP"
     FACE_DEVICE = "FACE_DEVICE"
+    # Tablet kiosk PWA — distinct from FACE_DEVICE (Hikvision/ZKTeco
+    # hardware) so reports can split "kiosk-driven" attendance out
+    # from dedicated terminals.
+    KIOSK_TABLET = "KIOSK_TABLET"
     QR_CODE = "QR_CODE"
     MANUAL = "MANUAL"
 
