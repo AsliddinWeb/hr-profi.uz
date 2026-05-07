@@ -59,7 +59,7 @@
     "success_in": "Checked in!",
     "success_out": "Checked out!",
     "saving": "Saving...",
-    "fail_title": "Face not recognized",
+    "fail_title": "Authentication failed",
     "fail_hint": "Look straight into the camera or contact your admin.",
     "late": "Late by {{minutes}} min",
     "overtime": "Overtime: {{minutes}} min",

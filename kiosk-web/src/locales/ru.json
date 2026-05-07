@@ -59,7 +59,7 @@
     "success_in": "Приход отмечен!",
     "success_out": "Уход отмечен!",
     "saving": "Сохраняется...",
-    "fail_title": "Лицо не распознано",
+    "fail_title": "Authentication failed",
     "fail_hint": "Посмотрите прямо в камеру или сообщите администратору.",
     "late": "Опоздание: {{minutes}} мин",
     "overtime": "Переработка: {{minutes}} мин",

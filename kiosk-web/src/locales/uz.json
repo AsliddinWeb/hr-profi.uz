@@ -59,7 +59,7 @@
     "success_in": "Kelish muvaffaqiyatli!",
     "success_out": "Ketish muvaffaqiyatli!",
     "saving": "Saqlanmoqda...",
-    "fail_title": "Yuz aniqlanmadi",
+    "fail_title": "Authentication failed",
     "fail_hint": "Iltimos, kameraga to'g'ri qarang yoki adminga xabar bering.",
     "late": "Kechikish: {{minutes}} daqiqa",
     "overtime": "Qo'shimcha: {{minutes}} daqiqa",

@@ -261,7 +261,7 @@ export function MainPage() {
           if (lowConfidenceStreakRef.current >= REJECT_AFTER_FAILURES) {
             lowConfidenceStreakRef.current = 0;
             setRejectShown(true);
-            speak("Try again", "en");
+            speak("Authentication failed", "en");
           }
         } else {
           lowConfidenceStreakRef.current = 0;
