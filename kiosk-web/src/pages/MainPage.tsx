@@ -16,6 +16,7 @@ import { api, apiErrorMessage } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { CameraPreview, type CameraHandle } from "@/components/CameraPreview";
 import { LangSwitcher } from "@/components/LangSwitcher";
+import { speak } from "@/lib/speech";
 import { useAuthStore } from "@/stores/auth";
 import type {
   KioskAttendanceResponse,
@@ -33,11 +34,20 @@ import type {
  * photo, low confidence). It's hidden behind a button so the surface
  * stays calm and self-explanatory. */
 
-// How often the auto-recognize loop snaps a frame.
-const RECOGNIZE_INTERVAL_MS = 2500;
+// Recognize loop cadence — at 1.2 s the kiosk feels "instant" without
+// hammering the api worker (face matching is ~80–150 ms per call on a
+// 2 GB VPS, so cadence < 800 ms would queue up).
+const RECOGNIZE_INTERVAL_MS = 1200;
 // After firing a check on someone, ignore their face for this long
 // so they don't get re-fired as they linger to read the success overlay.
 const PER_EMPLOYEE_COOLDOWN_MS = 30_000;
+// How many consecutive low-confidence frames we tolerate before
+// surfacing a red "not recognized" overlay. One frame is jittery —
+// the operator may have blinked or turned slightly. After the third
+// in a row it's almost certainly a stranger / un-enrolled employee.
+const REJECT_AFTER_FAILURES = 3;
+// How long to keep the red rejection overlay on screen.
+const REJECT_OVERLAY_MS = 3000;
 
 type Direction = "IN" | "OUT";
 
@@ -70,10 +80,20 @@ export function MainPage() {
   const [manualOpen, setManualOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [confirmEmp, setConfirmEmp] = useState<KioskEmployee | null>(null);
+  // ``optimistic`` shows the green overlay the *instant* the server
+  // returns a match, before /checkin completes. Refined into ``result``
+  // when the mutation lands so the late/overtime pills appear.
+  const [optimistic, setOptimistic] = useState<{
+    employee: KioskEmployee;
+    direction: Direction;
+  } | null>(null);
   const [result, setResult] = useState<{
     response: KioskAttendanceResponse;
     direction: Direction;
   } | null>(null);
+  // Red "not recognized" overlay when face is detected but doesn't
+  // match anyone enrolled (after N consecutive low-confidence frames).
+  const [rejectShown, setRejectShown] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [lastMatchName, setLastMatchName] = useState<string | null>(null);
@@ -113,11 +133,16 @@ export function MainPage() {
     onSuccess: (r) => {
       setConfirmEmp(null);
       setManualOpen(false);
+      setOptimistic(null);
       setResult(r);
       qc.invalidateQueries({ queryKey: ["kiosk-employees"] });
     },
     onError: (e) => {
+      setOptimistic(null);
       setErrorMsg(apiErrorMessage(e, t("errors.generic")));
+      // Audible fail too — operator knows immediately something went
+      // wrong without staring at the screen.
+      speak(t("voice.error"), i18n.language);
     },
   });
 
@@ -146,10 +171,13 @@ export function MainPage() {
 
   const cooldownRef = useRef<Map<string, number>>(new Map());
   const recognizingRef = useRef(false);
+  // Track consecutive low-confidence frames so we can show a single
+  // red "not recognized" overlay instead of one per tick.
+  const lowConfidenceStreakRef = useRef(0);
 
   useEffect(() => {
-    // Pause loop while a confirm modal / success overlay / manual sheet is up.
-    if (confirmEmp || result || manualOpen) return;
+    // Pause loop while a confirm modal / overlays / manual sheet are up.
+    if (confirmEmp || result || optimistic || rejectShown || manualOpen) return;
     if (!employeesQ.data?.items?.length) return;
 
     let cancelled = false;
@@ -165,23 +193,49 @@ export function MainPage() {
           "/kiosks/me/recognize",
           { image_base64: frame }
         );
-        if (cancelled || !r.data.matched || !r.data.match) return;
-        const emp = r.data.match.employee;
-        const last = cooldownRef.current.get(emp.id) ?? 0;
-        if (Date.now() - last < PER_EMPLOYEE_COOLDOWN_MS) {
-          // Still inside the cooldown — surface the name silently so
-          // the operator knows the kiosk *did* recognize them, just
-          // not act again yet.
-          setLastMatchName(emp.full_name);
-          return;
+        if (cancelled) return;
+
+        if (r.data.matched && r.data.match) {
+          lowConfidenceStreakRef.current = 0;
+          const emp = r.data.match.employee;
+          const last = cooldownRef.current.get(emp.id) ?? 0;
+          if (Date.now() - last < PER_EMPLOYEE_COOLDOWN_MS) {
+            // Cooldown — recognized but already checked in/out recently.
+            setLastMatchName(emp.full_name);
+            return;
+          }
+          cooldownRef.current.set(emp.id, Date.now());
+          const direction: Direction = emp.is_currently_in ? "OUT" : "IN";
+          // Optimistic: show the green overlay + speak the name THE
+          // INSTANT the match lands. Don't wait for /checkin to come
+          // back — the user already saw their face was recognized,
+          // make the kiosk feel instant.
+          setOptimistic({ employee: emp, direction });
+          const firstName = emp.full_name.split(" ")[0] ?? emp.full_name;
+          const greeting =
+            direction === "IN"
+              ? t("voice.welcome", { name: firstName })
+              : t("voice.goodbye", { name: firstName });
+          speak(greeting, i18n.language);
+          // Fire the actual write; onSuccess swaps optimistic → result
+          // (with late/overtime info).
+          checkMut.mutate({ employee: emp, direction, withSelfie: true });
+        } else if (r.data.reason === "low_confidence") {
+          lowConfidenceStreakRef.current += 1;
+          if (lowConfidenceStreakRef.current >= REJECT_AFTER_FAILURES) {
+            lowConfidenceStreakRef.current = 0;
+            setRejectShown(true);
+            speak(t("voice.not_recognized"), i18n.language);
+          }
+        } else {
+          // no_face_detected / no_enrolled_faces / other — silently
+          // wait for the next tick. Resetting the streak keeps the
+          // rejection counter from accumulating across "no face"
+          // frames (e.g. operator stepped away briefly).
+          lowConfidenceStreakRef.current = 0;
         }
-        cooldownRef.current.set(emp.id, Date.now());
-        const direction: Direction = emp.is_currently_in ? "OUT" : "IN";
-        // Auto-fire — the captured frame is reused as the selfie via
-        // the mutation's withSelfie flag.
-        checkMut.mutate({ employee: emp, direction, withSelfie: true });
       } catch {
-        // No face / network blip — the next tick will retry.
+        // Network blip — next tick will retry.
       } finally {
         recognizingRef.current = false;
         if (!cancelled) setScanning(false);
@@ -193,7 +247,24 @@ export function MainPage() {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [confirmEmp, result, manualOpen, employeesQ.data, checkMut]);
+  }, [
+    confirmEmp,
+    result,
+    optimistic,
+    rejectShown,
+    manualOpen,
+    employeesQ.data,
+    checkMut,
+    t,
+    i18n.language,
+  ]);
+
+  // Auto-dismiss the rejection overlay.
+  useEffect(() => {
+    if (!rejectShown) return;
+    const id = window.setTimeout(() => setRejectShown(false), REJECT_OVERLAY_MS);
+    return () => window.clearTimeout(id);
+  }, [rejectShown]);
 
   /* ---------- Manual selection helpers ---------------------------- */
 
@@ -291,7 +362,36 @@ export function MainPage() {
         />
       )}
 
+      {/* Optimistic overlay — shows the moment a match lands, before
+          /checkin comes back. Identical visuals to the final overlay
+          but without the late/overtime pills. Replaced in-place by
+          ``result`` once the mutation lands. */}
+      {optimistic && !result && (
+        <ResultOverlay
+          optimistic
+          result={{
+            response: {
+              employee: optimistic.employee,
+              check_type: optimistic.direction === "IN" ? "CHECK_IN" : "CHECK_OUT",
+              timestamp: new Date().toISOString(),
+              is_late: false,
+              late_minutes: 0,
+              overtime_minutes: 0,
+            },
+            direction: optimistic.direction,
+          }}
+          onClose={() => setOptimistic(null)}
+        />
+      )}
+
       {result && <ResultOverlay result={result} onClose={() => setResult(null)} />}
+
+      {/* Red "not recognized" overlay — fires after N consecutive
+          low-confidence frames. Auto-dismisses; clicking dismisses
+          early so the auto-loop resumes. */}
+      {rejectShown && (
+        <RejectOverlay onClose={() => setRejectShown(false)} />
+      )}
 
       {errorMsg && (
         <div className="fixed left-1/2 top-6 z-50 inline-flex max-w-md -translate-x-1/2 items-center gap-3 rounded-xl bg-rose-600 px-5 py-3 text-base font-medium text-white shadow-lg ring-1 ring-rose-700">
@@ -307,9 +407,6 @@ export function MainPage() {
         </div>
       )}
 
-      {/* Use i18n hook in scope to silence "i18n unused" warning when
-          some consumers strip the language attribute. */}
-      <span data-lang={i18n.language} className="hidden" />
     </div>
   );
 }
@@ -624,9 +721,11 @@ function ConfirmModal({
 
 function ResultOverlay({
   result,
+  optimistic,
   onClose,
 }: {
   result: { response: KioskAttendanceResponse; direction: Direction };
+  optimistic?: boolean;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -655,27 +754,61 @@ function ResultOverlay({
           <p className="text-2xl font-bold text-white drop-shadow">
             {r.employee.full_name}
           </p>
-          <p className="mt-0.5 font-mono text-lg tabular-nums text-white/80">
-            {new Date(r.timestamp).toLocaleTimeString(undefined, {
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-            })}
-          </p>
+          {optimistic ? (
+            <p className="mt-0.5 inline-flex items-center gap-1.5 text-base font-medium text-white/80">
+              <span className="size-1.5 rounded-full bg-white live-dot" />
+              {t("result.saving")}
+            </p>
+          ) : (
+            <p className="mt-0.5 font-mono text-lg tabular-nums text-white/80">
+              {new Date(r.timestamp).toLocaleTimeString(undefined, {
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+              })}
+            </p>
+          )}
         </div>
       </div>
-      <div className="mt-5 flex flex-wrap justify-center gap-2">
-        {r.is_late && (
-          <span className="rounded-full bg-rose-700/90 px-4 py-2 text-sm font-semibold text-white shadow ring-1 ring-white/20">
-            ⏰ {t("result.late", { minutes: r.late_minutes })}
-          </span>
-        )}
-        {r.overtime_minutes > 0 && (
-          <span className="rounded-full bg-indigo-700/90 px-4 py-2 text-sm font-semibold text-white shadow ring-1 ring-white/20">
-            ⏱ {t("result.overtime", { minutes: r.overtime_minutes })}
-          </span>
-        )}
+      {!optimistic && (
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          {r.is_late && (
+            <span className="rounded-full bg-rose-700/90 px-4 py-2 text-sm font-semibold text-white shadow ring-1 ring-white/20">
+              ⏰ {t("result.late", { minutes: r.late_minutes })}
+            </span>
+          )}
+          {r.overtime_minutes > 0 && (
+            <span className="rounded-full bg-indigo-700/90 px-4 py-2 text-sm font-semibold text-white shadow ring-1 ring-white/20">
+              ⏱ {t("result.overtime", { minutes: r.overtime_minutes })}
+            </span>
+          )}
+        </div>
+      )}
+      {!optimistic && (
+        <p className="mt-10 text-sm font-medium text-white/70">
+          {t("result.tap_anywhere")}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function RejectOverlay({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <div
+      className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-gradient-to-br from-rose-500 via-rose-600 to-rose-700 p-6 text-center"
+      onClick={onClose}
+    >
+      <div className="flex size-36 items-center justify-center rounded-full bg-white/20 shadow-xl ring-8 ring-white/30 backdrop-blur">
+        <span className="text-7xl drop-shadow-lg">×</span>
       </div>
+      <h2 className="mt-6 text-4xl font-extrabold text-white drop-shadow-lg sm:text-5xl">
+        {t("result.fail_title")}
+      </h2>
+      <p className="mt-4 max-w-md text-lg text-white/85">
+        {t("result.fail_hint")}
+      </p>
       <p className="mt-10 text-sm font-medium text-white/70">
         {t("result.tap_anywhere")}
       </p>

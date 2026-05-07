@@ -54,9 +54,18 @@
   "result": {
     "success_in": "Checked in!",
     "success_out": "Checked out!",
+    "saving": "Saving...",
+    "fail_title": "Face not recognized",
+    "fail_hint": "Look straight into the camera or contact your admin.",
     "late": "Late by {{minutes}} min",
     "overtime": "Overtime: {{minutes}} min",
     "tap_anywhere": "Tap anywhere to close"
+  },
+  "voice": {
+    "welcome": "Welcome, {{name}}!",
+    "goodbye": "Goodbye, {{name}}!",
+    "not_recognized": "Face not recognized. Please try again.",
+    "error": "An error occurred"
   },
   "errors": {
     "generic": "Something went wrong",

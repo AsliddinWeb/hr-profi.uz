@@ -54,9 +54,18 @@
   "result": {
     "success_in": "Kelish muvaffaqiyatli!",
     "success_out": "Ketish muvaffaqiyatli!",
+    "saving": "Saqlanmoqda...",
+    "fail_title": "Yuz aniqlanmadi",
+    "fail_hint": "Iltimos, kameraga to'g'ri qarang yoki adminga xabar bering.",
     "late": "Kechikish: {{minutes}} daqiqa",
     "overtime": "Qo'shimcha: {{minutes}} daqiqa",
     "tap_anywhere": "Yopish uchun bosing"
+  },
+  "voice": {
+    "welcome": "Xush kelibsiz, {{name}}!",
+    "goodbye": "Xayr, {{name}}!",
+    "not_recognized": "Yuz aniqlanmadi. Iltimos qayta urining.",
+    "error": "Xatolik yuz berdi"
   },
   "errors": {
     "generic": "Xato yuz berdi",
