@@ -21,11 +21,37 @@ export function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
+  const logout = useAuthStore((s) => s.logout);
+
+  // Roles allowed to use the admin web. EMPLOYEE / DEVICE / KIOSK
+  // accounts authenticate against /auth/login successfully (the
+  // backend doesn't gate by role at login — it just hands out a token
+  // with the role baked in), but they have no admin permissions, so
+  // every page they land on returns 403. Catch them here and bounce
+  // back to the right surface.
+  const ADMIN_ROLES = new Set([
+    "OWNER",
+    "COMPANY_ADMIN",
+    "HR_MANAGER",
+    "BRANCH_MANAGER",
+  ]);
+  const PWA_URL = "https://my.hr-profi.uz";
+
   const mutation = useMutation({
     mutationFn: async (creds: { username: string; password: string }) => {
       const { data } = await api.post<TokenPair>("/auth/login", creds);
       setTokens(data);
       const me = await api.get<User>("/auth/me");
+      if (!ADMIN_ROLES.has(me.data.role)) {
+        // Wrong app for this account. Drop the freshly-set tokens so
+        // we don't leave a half-logged-in state that ProtectedRoute
+        // would happily honour.
+        logout();
+        if (me.data.role === "EMPLOYEE") {
+          throw new Error(t("auth.employee_use_pwa", { url: PWA_URL }));
+        }
+        throw new Error(t("auth.role_not_allowed"));
+      }
       setUser(me.data);
       return me.data;
     },

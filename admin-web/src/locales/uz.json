@@ -11,7 +11,9 @@
     "submit": "Kirish",
     "logging_in": "Kirilmoqda...",
     "logout": "Chiqish",
-    "invalid_credentials": "Login yoki parol noto'g'ri"
+    "invalid_credentials": "Login yoki parol noto'g'ri",
+    "employee_use_pwa": "Bu hisob xodim uchun. Iltimos, mobil ilova ({{url}}) orqali kiring.",
+    "role_not_allowed": "Sizning hisobingiz admin paneliga kirish huquqiga ega emas."
   },
   "branch_dashboard": {
     "title": "Filial paneli",

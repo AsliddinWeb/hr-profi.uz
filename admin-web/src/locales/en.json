@@ -11,7 +11,9 @@
     "submit": "Sign in",
     "logging_in": "Signing in...",
     "logout": "Sign out",
-    "invalid_credentials": "Invalid username or password"
+    "invalid_credentials": "Invalid username or password",
+    "employee_use_pwa": "This account is for employees. Please use the mobile app ({{url}}).",
+    "role_not_allowed": "Your account doesn't have access to the admin panel."
   },
   "branch_dashboard": {
     "title": "Branch dashboard",
