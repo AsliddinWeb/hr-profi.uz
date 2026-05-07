@@ -61,8 +61,8 @@
     "saving": "Saving...",
     "fail_title": "Authentication failed",
     "fail_hint": "Look straight into the camera or contact your admin.",
-    "late": "Late by {{minutes}} min",
-    "overtime": "Overtime: {{minutes}} min",
+    "late": "Late by {{minutes}}",
+    "overtime": "Overtime: {{minutes}}",
     "tap_anywhere": "Tap anywhere to close"
   },
   "scan": {

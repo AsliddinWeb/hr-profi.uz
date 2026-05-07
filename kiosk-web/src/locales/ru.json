@@ -61,8 +61,8 @@
     "saving": "Сохраняется...",
     "fail_title": "Authentication failed",
     "fail_hint": "Посмотрите прямо в камеру или сообщите администратору.",
-    "late": "Опоздание: {{minutes}} мин",
-    "overtime": "Переработка: {{minutes}} мин",
+    "late": "Опоздание: {{minutes}}",
+    "overtime": "Переработка: {{minutes}}",
     "tap_anywhere": "Нажмите, чтобы закрыть"
   },
   "scan": {

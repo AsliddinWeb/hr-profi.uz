@@ -19,6 +19,7 @@ import { api, apiErrorMessage } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { CameraPreview, type CameraHandle } from "@/components/CameraPreview";
 import { LangSwitcher } from "@/components/LangSwitcher";
+import { fmtDuration } from "@/lib/format";
 import { speak } from "@/lib/speech";
 import { useAuthStore } from "@/stores/auth";
 import type {
@@ -73,8 +74,11 @@ type Mode = "idle" | "in" | "out";
 // their face, return to idle after this so the camera doesn't stay
 // powered indefinitely.
 const SCAN_TIMEOUT_MS = 30_000;
-// How long the success overlay stays before we return to idle.
-const SUCCESS_DWELL_MS = 4500;
+// How long the success overlay stays before we return to idle. Kept
+// short on purpose — Face-ID terminals at office entrances flash for
+// ~1 s and immediately go back to idle so the next person can step
+// up without staring at someone else's name.
+const SUCCESS_DWELL_MS = 1500;
 
 export function MainPage() {
   const { t, i18n } = useTranslation();
@@ -236,9 +240,17 @@ export function MainPage() {
           const emp = r.data.match.employee;
           const last = cooldownRef.current.get(emp.id) ?? 0;
           if (Date.now() - last < PER_EMPLOYEE_COOLDOWN_MS) {
-            // Cooldown — recognised but already checked recently.
-            // Just acknowledge the name and keep the loop running so
-            // the operator's friend can step in next.
+            // Cooldown — recognised again while standing at the
+            // kiosk. Re-greet (voice) but DON'T fire another DB
+            // write: for IN we keep the first record, for OUT the
+            // backend's natural multi-row + last_check_out logic
+            // handles "latest scan wins" (each tap from idle creates
+            // a fresh OUT row, and the daily summary picks the
+            // latest one). Bumping the cooldown stamp keeps the
+            // greet-only branch active while they linger.
+            cooldownRef.current.set(emp.id, Date.now());
+            const firstName = emp.full_name.split(" ")[0] ?? emp.full_name;
+            speak(`Thank you, ${firstName}`, "en");
             setLastMatchName(emp.full_name);
             return;
           }
@@ -811,12 +823,12 @@ function ResultOverlay({
         <div className="mt-5 flex flex-wrap justify-center gap-2">
           {r.is_late && (
             <span className="rounded-full bg-rose-700/90 px-4 py-2 text-sm font-semibold text-white shadow ring-1 ring-white/20">
-              ⏰ {t("result.late", { minutes: r.late_minutes })}
+              ⏰ {t("result.late", { minutes: fmtDuration(r.late_minutes) })}
             </span>
           )}
           {r.overtime_minutes > 0 && (
             <span className="rounded-full bg-indigo-700/90 px-4 py-2 text-sm font-semibold text-white shadow ring-1 ring-white/20">
-              ⏱ {t("result.overtime", { minutes: r.overtime_minutes })}
+              ⏱ {t("result.overtime", { minutes: fmtDuration(r.overtime_minutes) })}
             </span>
           )}
         </div>

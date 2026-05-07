@@ -61,8 +61,8 @@
     "saving": "Saqlanmoqda...",
     "fail_title": "Authentication failed",
     "fail_hint": "Iltimos, kameraga to'g'ri qarang yoki adminga xabar bering.",
-    "late": "Kechikish: {{minutes}} daqiqa",
-    "overtime": "Qo'shimcha: {{minutes}} daqiqa",
+    "late": "Kechikish: {{minutes}}",
+    "overtime": "Qo'shimcha: {{minutes}}",
     "tap_anywhere": "Yopish uchun bosing"
   },
   "scan": {
