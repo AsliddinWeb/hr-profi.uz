@@ -4,11 +4,14 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Query, status
-from sqlalchemy import case, func, select
+from fastapi import APIRouter, Body, Query, status
+from pydantic import BaseModel, EmailStr, Field
+from sqlalchemy import case, desc, func, or_, select
 
 from app.core.deps import DbDep, OwnerUser
-from app.core.exceptions import NotFoundError
+from app.core.exceptions import NotFoundError, ValidationAppError
+from app.core.permissions import Role
+from app.core.security import hash_password
 from app.models.branch import Branch
 from app.models.company import Company
 from app.models.user import User
@@ -19,6 +22,7 @@ from app.schemas.company import (
     CompanySuspend,
     CompanyUpdate,
 )
+from app.schemas.user import UserRead
 from app.services import company_service
 
 router = APIRouter(prefix="/owner", tags=["owner"])
@@ -137,6 +141,105 @@ async def delete_company(company_id: UUID, db: DbDep, _: OwnerUser) -> MessageRe
     await db.delete(company)
     await db.commit()
     return MessageResponse(message="deleted")
+
+
+# ---------- Company admin (super-admin) management -------------------------
+
+
+class CompanyAdminUpdate(BaseModel):
+    """Fields the OWNER can patch on a tenant's COMPANY_ADMIN user.
+
+    ``username`` is intentionally absent — usernames are immutable in the
+    rest of the codebase (they're part of the unique key + token sub
+    semantics). Pass ``password`` to rotate the credentials.
+    """
+
+    email: EmailStr | None = None
+    full_name: str | None = Field(default=None, max_length=200)
+    phone: str | None = Field(default=None, max_length=32)
+    language: str | None = Field(default=None, pattern="^(uz|ru|en)$")
+    is_active: bool | None = None
+    password: str | None = Field(default=None, min_length=8, max_length=128)
+
+
+async def _company_admin(db, company_id: UUID) -> User:
+    """The active super-admin of a tenant. Most companies have exactly one
+    COMPANY_ADMIN created during /owner/companies onboarding; if a tenant
+    accidentally has multiple we return the oldest (the original founder
+    account) so the Owner UI stays deterministic."""
+    user = (
+        await db.execute(
+            select(User)
+            .where(
+                User.company_id == company_id,
+                User.role == Role.COMPANY_ADMIN.value,
+            )
+            .order_by(User.created_at.asc())
+            .limit(1)
+            .execution_options(skip_tenant_filter=True)
+        )
+    ).scalar_one_or_none()
+    if user is None:
+        raise NotFoundError("company.admin_not_found")
+    return user
+
+
+@router.get("/companies/{company_id}/admin", response_model=UserRead)
+async def get_company_admin(
+    company_id: UUID, db: DbDep, _: OwnerUser
+) -> UserRead:
+    """Return the tenant's primary COMPANY_ADMIN user."""
+    await _get_company(db, company_id)
+    return UserRead.model_validate(await _company_admin(db, company_id))
+
+
+@router.patch("/companies/{company_id}/admin", response_model=UserRead)
+async def update_company_admin(
+    company_id: UUID,
+    data: CompanyAdminUpdate,
+    db: DbDep,
+    _: OwnerUser,
+) -> UserRead:
+    """Patch the tenant's primary COMPANY_ADMIN. ``password`` is hashed in
+    place; other fields are written directly. Empty payload is a no-op."""
+    await _get_company(db, company_id)
+    admin = await _company_admin(db, company_id)
+
+    diff = data.model_dump(exclude_unset=True)
+    new_password = diff.pop("password", None)
+
+    # If email is being changed, sanity-check uniqueness within the tenant
+    # so we don't trip the (company_id, email) unique constraint with a
+    # generic 500.
+    new_email = diff.get("email")
+    if new_email and new_email != admin.email:
+        clash = (
+            await db.execute(
+                select(User.id)
+                .where(
+                    User.company_id == company_id,
+                    User.email == new_email,
+                    User.id != admin.id,
+                )
+                .execution_options(skip_tenant_filter=True)
+            )
+        ).scalar_one_or_none()
+        if clash is not None:
+            raise ValidationAppError("user.email_taken")
+
+    for field, value in diff.items():
+        setattr(admin, field, value)
+    if new_password:
+        admin.password_hash = hash_password(new_password)
+
+    await db.commit()
+    await db.refresh(admin)
+    return UserRead.model_validate(admin)
+
+
+# Silence unused-import warnings for symbols kept available for future
+# owner-only views (e.g. cross-tenant user search).
+_ = desc, or_
 
 
 @router.get("/stats")

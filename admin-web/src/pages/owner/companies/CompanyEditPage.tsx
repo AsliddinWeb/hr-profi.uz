@@ -17,6 +17,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { useEnumLabel } from "@/lib/enum";
 import type { Company } from "@/lib/types";
 
+import { CompanyAdminCard } from "./CompanyAdminCard";
 import { CompanyForm } from "./CompanyForm";
 import { fromCompany, type CompanyFormState } from "./utils";
 
@@ -216,6 +217,8 @@ export function CompanyEditPage() {
         }}
         onCancel={() => nav("/owner/companies")}
       />
+
+      <CompanyAdminCard companyId={c.id} />
     </div>
   );
 }
