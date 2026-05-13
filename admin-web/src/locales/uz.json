@@ -1472,6 +1472,7 @@
     "admin_reset_password": "Parolni yangilash",
     "admin_reset_password_hint": "Bo'sh qoldirilsa, parol o'zgarmaydi. Yangi parol yozsangiz — eskisi bekor qilinadi.",
     "admin_new_password": "Yangi parol",
+    "admin_password_too_short": "Parol kamida 8 ta belgi bo'lishi kerak",
 
     "col_company": "Kompaniya",
     "status": "Holat",

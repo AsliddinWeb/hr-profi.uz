@@ -1471,6 +1471,7 @@
     "admin_reset_password": "Сменить пароль",
     "admin_reset_password_hint": "Пусто = пароль не меняется. Введите новый — старый будет аннулирован.",
     "admin_new_password": "Новый пароль",
+    "admin_password_too_short": "Пароль должен быть не короче 8 символов",
 
     "col_company": "Компания",
     "status": "Статус",

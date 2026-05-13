@@ -67,6 +67,11 @@ export function CompanyAdminCard({ companyId }: { companyId: string }) {
 
   const saveMut = useMutation({
     mutationFn: async () => {
+      // Guard against the 422 round-trip — give instant feedback if
+      // the operator typed a short password before submitting.
+      if (form.password && form.password.length < 8) {
+        throw new Error(t("owner_companies.admin_password_too_short"));
+      }
       const body: Record<string, unknown> = {
         full_name: form.full_name || null,
         email: form.email || null,

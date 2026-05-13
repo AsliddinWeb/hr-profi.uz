@@ -9,7 +9,7 @@ from datetime import date, datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import JSON, Boolean, Date, String
+from sqlalchemy import JSON, BigInteger, Boolean, Date, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -61,6 +61,20 @@ class Company(Base, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     suspended_at: Mapped[datetime | None] = mapped_column()
     suspended_reason: Mapped[str | None] = mapped_column(String(500))
+
+    # Per-tenant prefix used to derive employee codes. Defaults to the
+    # first segment of the slug (e.g. slug "novza-eshiklari" → prefix
+    # "novza"); admin can override via /owner/companies edit. Short
+    # enough to fit "{prefix}-0001" inside the 64-char employee_code
+    # column without bumping it.
+    employee_code_prefix: Mapped[str | None] = mapped_column(String(16))
+    # Monotonic counter for ``employee_code`` assignment. Bumped each
+    # time create_employee fires so terminated rows don't free up old
+    # codes — useful for audit trails and avoids two people sharing the
+    # same code across time.
+    next_employee_seq: Mapped[int] = mapped_column(
+        BigInteger, default=1, server_default="1", nullable=False
+    )
 
     branches: Mapped[list["Branch"]] = relationship(
         back_populates="company", cascade="all, delete-orphan"

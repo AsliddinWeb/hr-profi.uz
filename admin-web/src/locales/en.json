@@ -1471,6 +1471,7 @@
     "admin_reset_password": "Reset password",
     "admin_reset_password_hint": "Leave empty to keep the current password. A new value rotates it.",
     "admin_new_password": "New password",
+    "admin_password_too_short": "Password must be at least 8 characters",
 
     "col_company": "Company",
     "status": "Status",

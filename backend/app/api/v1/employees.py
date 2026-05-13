@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import csv
 import io
-import re
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Query, UploadFile, status
@@ -68,7 +67,19 @@ class NextEmployeeCode(BaseModel):
     code: str
 
 
-_CODE_PATTERN = re.compile(r"^E-(\d+)$")
+def _employee_code_prefix(company) -> str:
+    """Pick the prefix for ``employee_code`` generation. Falls back to
+    the first segment of the slug if the column isn't set yet (e.g. a
+    company created before the prefix migration). Kept as a free
+    function so create_employee can call it without duplicating logic."""
+    explicit = (getattr(company, "employee_code_prefix", None) or "").strip()
+    if explicit:
+        return explicit
+    slug = (company.slug or "").strip()
+    if not slug:
+        return "emp"
+    first = slug.split("-", 1)[0] or slug
+    return first[:16] or "emp"
 
 
 @router.get(
@@ -81,31 +92,26 @@ async def next_employee_code(
     db: DbDep,
     tenant: TenantId,
 ) -> NextEmployeeCode:
-    """Suggest the next ``E-NNN`` for the current company.
+    """Suggest the next ``{prefix}-{seq:04d}`` for the current company.
 
-    Scans existing employees (incl. terminated/inactive) for codes matching
-    ``E-<digits>`` and returns the smallest unused integer with 3-digit
-    zero padding. Gaps from terminations are kept — we always return
-    ``max + 1`` so codes stay monotonically increasing for audit trails.
+    Reads ``companies.next_employee_seq`` and the per-company prefix
+    so codes are visually unique across tenants (every fresh tenant
+    used to start at E-001, which collided in operators' minds). The
+    counter is monotonic — terminated rows do NOT free up codes, so
+    audit trails over the lifetime of a tenant stay readable.
     """
+    from app.models.company import Company
+
     company_id = _resolved_company_id(user, tenant)
-
-    rows = (
+    company = (
         await db.execute(
-            select(Employee.employee_code).where(Employee.company_id == company_id)
+            select(Company)
+            .where(Company.id == company_id)
+            .execution_options(skip_tenant_filter=True)
         )
-    ).scalars().all()
-
-    max_n = 0
-    for c in rows:
-        m = _CODE_PATTERN.match(c or "")
-        if not m:
-            continue
-        n = int(m.group(1))
-        if n > max_n:
-            max_n = n
-
-    return NextEmployeeCode(code=f"E-{max_n + 1:03d}")
+    ).scalar_one()
+    prefix = _employee_code_prefix(company)
+    return NextEmployeeCode(code=f"{prefix}-{int(company.next_employee_seq):04d}")
 
 
 # --- /me (employee self-read) — placed BEFORE /{id} so it doesn't get caught
