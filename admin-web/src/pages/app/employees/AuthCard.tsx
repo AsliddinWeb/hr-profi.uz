@@ -48,9 +48,10 @@ export function AuthCard({ employee }: Props) {
       if (newPassword !== confirmPassword) {
         throw new Error(t("employees.password_mismatch") ?? "Mismatch");
       }
-      await api.post(`/users/${employee.user_id}/reset-password`, {
-        user_id: employee.user_id,
-        new_password: newPassword,
+      // Single endpoint covers create/update; for existing logins we
+      // just pass the new password.
+      await api.patch(`/employees/${employee.id}/login`, {
+        password: newPassword,
       });
     },
     onSuccess: () => {
@@ -64,10 +65,26 @@ export function AuthCard({ employee }: Props) {
     },
   });
 
+  // Inline username rename — kept separate from the password dialog so
+  // routine "fix a typo" edits don't open the more dramatic reset modal.
+  const [renameDraft, setRenameDraft] = useState<string | null>(null);
+  const renameMut = useMutation({
+    mutationFn: async () => {
+      if (renameDraft == null || !renameDraft.trim()) return;
+      await api.patch(`/employees/${employee.id}/login`, {
+        username: renameDraft.trim(),
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users", employee.user_id] });
+      setRenameDraft(null);
+    },
+  });
+
   const deactivateMut = useMutation({
     mutationFn: async () => {
       if (!employee.user_id) return;
-      await api.delete(`/users/${employee.user_id}`);
+      await api.patch(`/employees/${employee.id}/login`, { is_active: false });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["users", employee.user_id] });
@@ -77,33 +94,27 @@ export function AuthCard({ employee }: Props) {
   const reactivateMut = useMutation({
     mutationFn: async () => {
       if (!employee.user_id) return;
-      await api.patch(`/users/${employee.user_id}`, { is_active: true });
+      await api.patch(`/employees/${employee.id}/login`, { is_active: true });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["users", employee.user_id] });
     },
   });
 
-  // No login linked yet — point the admin to the Create flow's login section
-  // (we don't provision a User from Edit, since that flow is multi-step and
-  // collides with the existing employee_service create path).
+  // No login linked yet — surface the same create form here so the
+  // admin can provision an account without going back to Create. The
+  // ``PATCH /employees/{id}/login`` endpoint handles both create + update.
   if (!employee.user_id) {
     return (
-      <Card>
-        <div className="space-y-3 p-6">
-          <div className="flex items-start gap-3">
-            <span className="mt-0.5 flex size-7 items-center justify-center rounded-md bg-slate-100 text-slate-500">
-              <KeyRound className="size-4" />
-            </span>
-            <div>
-              <h2 className="text-sm font-semibold text-slate-700">
-                {t("employees.section_login")}
-              </h2>
-              <p className="text-xs text-slate-500">{t("employees.no_login_linked")}</p>
-            </div>
-          </div>
-        </div>
-      </Card>
+      <CreateLoginCard
+        employeeId={employee.id}
+        onCreated={() => {
+          // Refresh the page-level employees query so this card flips
+          // into the "active login" state on next render.
+          qc.invalidateQueries({ queryKey: ["employees", employee.id] });
+          qc.invalidateQueries({ queryKey: ["employees"] });
+        }}
+      />
     );
   }
 
@@ -141,10 +152,62 @@ export function AuthCard({ employee }: Props) {
           <p className="text-sm text-slate-500">{t("common.loading")}</p>
         ) : (
           <div className="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 sm:grid-cols-3">
-            <Field
-              label={t("employees.login_username")}
-              value={user?.username ?? "—"}
-            />
+            {/* Username — editable inline; double-click or click the
+                pencil to switch to an Input. Keeps the routine flow
+                ("typo, fix it") out of the reset-password dialog. */}
+            <div>
+              <div className="text-[10px] uppercase tracking-wide text-slate-500">
+                {t("employees.login_username")}
+              </div>
+              {renameDraft == null ? (
+                <div className="mt-0.5 flex items-center gap-2">
+                  <span className="text-sm font-medium text-slate-800">
+                    {user?.username ?? "—"}
+                  </span>
+                  {isActive && user?.username && (
+                    <button
+                      type="button"
+                      onClick={() => setRenameDraft(user.username)}
+                      className="text-[11px] font-medium text-brand-600 hover:underline"
+                    >
+                      {t("common.edit")}
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="mt-0.5 flex items-center gap-2">
+                  <Input
+                    value={renameDraft}
+                    onChange={(e) => setRenameDraft(e.target.value)}
+                    autoCapitalize="none"
+                    className="h-8 text-sm"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => renameMut.mutate()}
+                    loading={renameMut.isPending}
+                    disabled={!renameDraft.trim()}
+                  >
+                    {t("common.save")}
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setRenameDraft(null)}
+                    disabled={renameMut.isPending}
+                  >
+                    {t("common.cancel")}
+                  </Button>
+                </div>
+              )}
+              {renameMut.isError && (
+                <p className="mt-1 text-[11px] text-red-600">
+                  {apiErrorMessage(renameMut.error)}
+                </p>
+              )}
+            </div>
             <Field label={t("employees.email")} value={user?.email ?? "—"} />
             <Field
               label={t("employees.last_login")}
@@ -270,5 +333,112 @@ function Field({ label, value }: { label: string; value: string }) {
       <div className="text-[10px] uppercase tracking-wide text-slate-500">{label}</div>
       <div className="mt-0.5 text-sm font-medium text-slate-800">{value}</div>
     </div>
+  );
+}
+
+/* ================================================================
+ *  Provisioning UI — appears in the AuthCard slot when an employee
+ *  has no linked User row. POSTs to ``PATCH /employees/{id}/login``
+ *  with a fresh username + password; the backend creates the User,
+ *  links it via ``employee.user_id``, and the page reloads.
+ * ================================================================ */
+
+function CreateLoginCard({
+  employeeId,
+  onCreated,
+}: {
+  employeeId: string;
+  onCreated: () => void;
+}) {
+  const { t } = useTranslation();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+
+  const createMut = useMutation({
+    mutationFn: async () => {
+      setErr(null);
+      if (!username.trim()) {
+        throw new Error(t("employees.login_username_required"));
+      }
+      if (password.length < 8) {
+        throw new Error(t("employees.password_min_length"));
+      }
+      if (password !== confirm) {
+        throw new Error(t("employees.password_mismatch"));
+      }
+      await api.patch(`/employees/${employeeId}/login`, {
+        username: username.trim(),
+        password,
+      });
+    },
+    onSuccess: () => {
+      setUsername("");
+      setPassword("");
+      setConfirm("");
+      onCreated();
+    },
+    onError: (e) => setErr(apiErrorMessage(e)),
+  });
+
+  return (
+    <Card>
+      <div className="space-y-4 p-6">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 flex size-7 items-center justify-center rounded-md bg-brand-50 text-brand-700">
+            <KeyRound className="size-4" />
+          </span>
+          <div>
+            <h2 className="text-sm font-semibold text-slate-700">
+              {t("employees.section_login")}
+            </h2>
+            <p className="text-xs text-slate-500">
+              {t("employees.section_login_hint")}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <Input
+            label={t("employees.login_username")}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoCapitalize="none"
+            placeholder="asliddin.a"
+          />
+          <Input
+            label={t("employees.login_password")}
+            type="password"
+            minLength={8}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+          />
+          <Input
+            label={t("employees.confirm_password")}
+            type="password"
+            minLength={8}
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder="••••••••"
+          />
+        </div>
+
+        {err && <p className="text-xs text-red-600">{err}</p>}
+
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            onClick={() => createMut.mutate()}
+            loading={createMut.isPending}
+            disabled={!username || !password || !confirm}
+          >
+            <KeyRound className="size-4" />
+            {t("employees.create_login_button")}
+          </Button>
+        </div>
+      </div>
+    </Card>
   );
 }

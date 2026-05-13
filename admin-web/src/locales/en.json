@@ -1224,7 +1224,9 @@
     "schedule_stat_none": "empty",
     "schedule_none": "—",
     "create_login": "Create login",
+    "create_login_button": "Create login",
     "login_username": "Username",
+    "login_username_required": "Enter a username",
     "login_password": "Password",
     "notes_placeholder": "Internal HR notes...",
 

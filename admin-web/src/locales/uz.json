@@ -1225,7 +1225,9 @@
     "schedule_stat_none": "bo'sh",
     "schedule_none": "—",
     "create_login": "Login yaratish",
+    "create_login_button": "Login yaratish",
     "login_username": "Foydalanuvchi nomi",
+    "login_username_required": "Foydalanuvchi nomini kiriting",
     "login_password": "Parol",
     "notes_placeholder": "HR uchun maxfiy izohlar...",
 

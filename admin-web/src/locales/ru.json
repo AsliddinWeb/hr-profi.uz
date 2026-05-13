@@ -1224,7 +1224,9 @@
     "schedule_stat_none": "пусто",
     "schedule_none": "—",
     "create_login": "Создать логин",
+    "create_login_button": "Создать логин",
     "login_username": "Имя пользователя",
+    "login_username_required": "Введите имя пользователя",
     "login_password": "Пароль",
     "notes_placeholder": "Внутренние заметки HR...",
 

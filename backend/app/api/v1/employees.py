@@ -499,3 +499,172 @@ async def terminate_employee(
             "face_sync enqueue (terminate) failed for emp=%s", emp.id
         )
     return MessageResponse(message="terminated")
+
+
+# ---------- Login (User) management ------------------------------------------
+
+
+class EmployeeLoginRead(BaseModel):
+    """Snapshot of the employee's auth-side User row, or absence thereof."""
+
+    has_login: bool
+    user_id: UUID | None = None
+    username: str | None = None
+    is_active: bool | None = None
+
+
+class EmployeeLoginPatch(BaseModel):
+    """Create-or-update an employee's auth login from the employee edit
+    page. If the employee has no User row yet, ``username`` + ``password``
+    are required and we provision a new one with role EMPLOYEE. If a row
+    already exists, only the provided fields are applied — leaving
+    ``password`` empty keeps the current credential."""
+
+    username: str | None = Field(default=None, min_length=2, max_length=64)
+    password: str | None = Field(default=None, min_length=8, max_length=128)
+    is_active: bool | None = None
+
+
+@router.get(
+    "/{employee_id}/login",
+    response_model=EmployeeLoginRead,
+    dependencies=[Depends(require_permission("employee.read"))],
+)
+async def get_employee_login(
+    employee_id: UUID,
+    user: CurrentUser,
+    db: DbDep,
+    tenant: TenantId,
+) -> EmployeeLoginRead:
+    _resolved_company_id(user, tenant)
+    emp = await _get_employee(db, employee_id, user)
+    if emp.user_id is None:
+        return EmployeeLoginRead(has_login=False)
+    from app.models.user import User as UserModel
+
+    login = (
+        await db.execute(
+            select(UserModel)
+            .where(UserModel.id == emp.user_id)
+            .execution_options(skip_tenant_filter=True)
+        )
+    ).scalar_one_or_none()
+    if login is None:
+        return EmployeeLoginRead(has_login=False)
+    return EmployeeLoginRead(
+        has_login=True,
+        user_id=login.id,
+        username=login.username,
+        is_active=login.is_active,
+    )
+
+
+@router.patch(
+    "/{employee_id}/login",
+    response_model=EmployeeLoginRead,
+    dependencies=[Depends(require_permission("employee.update"))],
+)
+async def update_employee_login(
+    employee_id: UUID,
+    data: EmployeeLoginPatch,
+    user: CurrentUser,
+    db: DbDep,
+    tenant: TenantId,
+) -> EmployeeLoginRead:
+    """Create or update the linked User row.
+
+    - First call (employee has no ``user_id``): requires both
+      ``username`` + ``password``, provisions a new EMPLOYEE-role User
+      and links it via ``employee.user_id``.
+    - Subsequent calls: each provided field is applied. ``password``
+      gets re-hashed; an empty / absent password leaves the credential
+      alone so the admin can rename or deactivate without rotating.
+    """
+    from app.core.permissions import Role
+    from app.core.security import hash_password
+    from app.models.user import User as UserModel
+    from app.models.user import UserStatus
+
+    company_id = _resolved_company_id(user, tenant)
+    emp = await _get_employee(db, employee_id, user)
+
+    # --- Create branch ---
+    if emp.user_id is None:
+        if not data.username or not data.password:
+            raise ValidationAppError("employee.login_credentials_required")
+        # Uniqueness inside the tenant.
+        clash = (
+            await db.execute(
+                select(UserModel.id)
+                .where(
+                    UserModel.company_id == company_id,
+                    UserModel.username == data.username,
+                )
+                .execution_options(skip_tenant_filter=True)
+            )
+        ).scalar_one_or_none()
+        if clash is not None:
+            raise ConflictError("user.duplicate")
+        login_user = UserModel(
+            company_id=company_id,
+            username=data.username,
+            email=emp.email,
+            password_hash=hash_password(data.password),
+            role=Role.EMPLOYEE,
+            status=UserStatus.ACTIVE,
+            full_name=emp.full_name,
+            phone=emp.phone,
+            is_active=data.is_active if data.is_active is not None else True,
+            language="uz",
+        )
+        db.add(login_user)
+        await db.flush()
+        emp.user_id = login_user.id
+        await db.commit()
+        return EmployeeLoginRead(
+            has_login=True,
+            user_id=login_user.id,
+            username=login_user.username,
+            is_active=login_user.is_active,
+        )
+
+    # --- Update branch ---
+    login = (
+        await db.execute(
+            select(UserModel)
+            .where(UserModel.id == emp.user_id)
+            .execution_options(skip_tenant_filter=True)
+        )
+    ).scalar_one_or_none()
+    if login is None:
+        raise NotFoundError("user.not_found")
+
+    if data.username and data.username != login.username:
+        clash = (
+            await db.execute(
+                select(UserModel.id)
+                .where(
+                    UserModel.company_id == company_id,
+                    UserModel.username == data.username,
+                    UserModel.id != login.id,
+                )
+                .execution_options(skip_tenant_filter=True)
+            )
+        ).scalar_one_or_none()
+        if clash is not None:
+            raise ConflictError("user.duplicate")
+        login.username = data.username
+
+    if data.password:
+        login.password_hash = hash_password(data.password)
+    if data.is_active is not None:
+        login.is_active = data.is_active
+
+    await db.commit()
+    await db.refresh(login)
+    return EmployeeLoginRead(
+        has_login=True,
+        user_id=login.id,
+        username=login.username,
+        is_active=login.is_active,
+    )
