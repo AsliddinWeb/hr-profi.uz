@@ -472,6 +472,13 @@ async def _autogenerate_late_deduction(
         )
     )
 
+    # Symmetric with the absence helper: don't penalise days before the
+    # employee was hired. Late_minutes from a misattributed pre-hire
+    # check-in (e.g. the previous owner of the same kiosk slot) would
+    # otherwise show up as a real fine.
+    if employee.hire_date is not None and day < employee.hire_date:
+        return
+
     company = (
         await db.execute(
             select(Company)
