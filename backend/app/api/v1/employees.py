@@ -243,6 +243,23 @@ async def create_employee(
     # ``/kiosks/me/recognize`` brute-force matcher.
     if employee.photo_url:
         _enqueue_face_embedding_compute(employee.id)
+
+    # Schedule regen — if the new employee already has a default
+    # template, populate the current month + 60 days so they show up
+    # on the /app/shifts grid immediately.
+    if employee.shift_template_id is not None:
+        from app.services.shift_service import regenerate_employee_schedule
+
+        try:
+            await regenerate_employee_schedule(db, employee_id=employee.id)
+            await db.commit()
+        except Exception:  # noqa: BLE001
+            import logging
+
+            await db.rollback()
+            logging.getLogger(__name__).exception(
+                "regenerate_employee_schedule failed for emp=%s (create)", employee.id
+            )
     return EmployeeRead.model_validate(employee)
 
 
@@ -396,15 +413,23 @@ async def update_employee(
     await db.refresh(emp)
 
     # Schedule regen — fired when the template assignment changes so the
-    # calendar reflects the new weekly pattern immediately.
+    # calendar reflects the new weekly pattern immediately. The window
+    # covers the start of the current month → today+60 so the
+    # /app/shifts page shows a fully populated grid right after the
+    # admin's first save.
     if emp.shift_template_id != old_template:
         from app.services.shift_service import regenerate_employee_schedule
 
         try:
             await regenerate_employee_schedule(db, employee_id=emp.id)
             await db.commit()
-        except Exception:  # pragma: no cover — defensive
+        except Exception:  # noqa: BLE001
+            import logging
+
             await db.rollback()
+            logging.getLogger(__name__).exception(
+                "regenerate_employee_schedule failed for emp=%s", emp.id
+            )
 
     # Decide what (if anything) to enqueue.
     try:

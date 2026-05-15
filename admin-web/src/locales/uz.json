@@ -1011,7 +1011,9 @@
     "row_clear": "Tozalash (oy bo'yicha)",
     "row_clear_confirm": "Shu xodimning butun oy jadvalini tozalaymizmi?",
     "row_reset_to_default": "Default holatga qaytarish",
-    "row_default_missing": "Bu xodimga avval Edit sahifasida \"Standart smena shabloni\" tanlang."
+    "row_default_missing": "Bu xodimga avval Edit sahifasida \"Standart smena shabloni\" tanlang.",
+    "row_default_unset": "Standart shablon yo'q",
+    "row_default_set_hint": "Bu xodim uchun standart smena shablonini tanlang — keyin jadvalda avtomatik qo'llanadi."
   },
   "settings_page": {
     "title": "Sozlamalar",

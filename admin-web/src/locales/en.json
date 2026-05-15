@@ -1010,7 +1010,9 @@
     "row_clear": "Clear (whole month)",
     "row_clear_confirm": "Clear this employee's schedule for the whole month?",
     "row_reset_to_default": "Reset to default",
-    "row_default_missing": "Set a \"Default shift template\" on the employee's profile first."
+    "row_default_missing": "Set a \"Default shift template\" on the employee's profile first.",
+    "row_default_unset": "No default template",
+    "row_default_set_hint": "Pick a default shift template — it will be applied to the schedule automatically."
   },
   "settings_page": {
     "title": "Settings",

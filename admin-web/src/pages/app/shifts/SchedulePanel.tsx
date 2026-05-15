@@ -690,11 +690,27 @@ function EmployeeRow({
   onClear: () => void;
 }) {
   const { t } = useTranslation();
+  const qc = useQueryClient();
   const today = new Date();
+
+  // Inline "default template" dropdown — saves to ``Employee.shift_template_id``
+  // and regenerates the schedule server-side. Lets the admin bind a
+  // default without bouncing into the employee edit page.
+  const setDefaultMut = useMutation({
+    mutationFn: async (templateId: string | null) =>
+      api.patch(`/employees/${employee.id}`, {
+        shift_template_id: templateId,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["employees"] });
+      qc.invalidateQueries({ queryKey: ["employees", "for-shifts"] });
+      qc.invalidateQueries({ queryKey: ["shifts", "schedule"] });
+    },
+  });
 
   return (
     <tr className="border-t border-slate-100 hover:bg-slate-50/50">
-      <td className="sticky left-0 z-10 min-w-[220px] bg-white px-3 py-1.5 align-middle">
+      <td className="sticky left-0 z-10 min-w-[260px] bg-white px-3 py-1.5 align-middle">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <Avatar photo={employee.photo_url} name={employee.full_name} />
@@ -702,7 +718,31 @@ function EmployeeRow({
               <div className="truncate text-sm font-medium text-slate-800">
                 {employee.full_name}
               </div>
-              <div className="text-[10px] text-slate-400">{employee.employee_code}</div>
+              <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+                <span>{employee.employee_code}</span>
+                <select
+                  value={employee.shift_template_id ?? ""}
+                  disabled={setDefaultMut.isPending}
+                  onChange={(e) =>
+                    setDefaultMut.mutate(e.target.value || null)
+                  }
+                  className={cn(
+                    "rounded border border-slate-200 bg-slate-50 px-1 py-0.5 text-[10px] text-slate-600 transition",
+                    "hover:border-brand-300 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-300",
+                    setDefaultMut.isPending && "opacity-50"
+                  )}
+                  title={t("shifts_page.row_default_set_hint") ?? undefined}
+                >
+                  <option value="">
+                    {t("shifts_page.row_default_unset")}
+                  </option>
+                  {templates.map((tp) => (
+                    <option key={tp.id} value={tp.id}>
+                      {tp.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
           <RowMenu

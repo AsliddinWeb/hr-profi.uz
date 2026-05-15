@@ -46,7 +46,14 @@ async def regenerate_employee_schedule(
     days_ahead: int = DEFAULT_HORIZON_DAYS,
     start: date | None = None,
 ) -> int:
-    """Refresh PLANNED/REST_DAY rows for one employee for the next N days.
+    """Refresh PLANNED/REST_DAY rows for one employee.
+
+    Window: ``start`` … today+``days_ahead``. ``start`` defaults to the
+    1st of the *current* calendar month so the admin's "open the shifts
+    page right after editing an employee" flow gets a fully populated
+    month — not just today onward. Past-month rows are NEVER touched
+    (we wouldn't want to retroactively rewrite a row a manager already
+    set by hand).
 
     Returns the count of rows inserted-or-updated. Caller commits.
     """
@@ -69,8 +76,15 @@ async def regenerate_employee_schedule(
         if template is not None and template.is_active:
             working_days = set(template.working_days or [])
 
-    today = start or datetime.now(timezone.utc).date()
-    horizon = today + timedelta(days=days_ahead)
+    today_local = datetime.now(timezone.utc).date()
+    if start is None:
+        # First of the current month so the admin's shifts page shows
+        # a filled current-month view, not just from "today" forward.
+        # Clamped so we never write into a *past* month (which would
+        # surprise managers who already curated those days).
+        start = today_local.replace(day=1)
+    today = start
+    horizon = today_local + timedelta(days=days_ahead)
 
     existing = {
         row.date: row
