@@ -20,9 +20,10 @@ from enum import StrEnum
 from sqlalchemy import (
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
-    UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -59,10 +60,18 @@ class FaceSyncJob(Base, TenantMixin, TimestampMixin):
     """
 
     __tablename__ = "face_sync_jobs"
+    # Partial unique index: one active job per (device, employee, action) at
+    # a time. Terminal rows (SUCCESS / FAILED / CANCELLED) are *not* in the
+    # filter — re-enrolling an employee whose previous ENROLL succeeded
+    # should be allowed without colliding on the success row.
     __table_args__ = (
-        UniqueConstraint(
-            "device_id", "employee_id", "action", "status",
-            name="uq_face_sync_active",
+        Index(
+            "uq_face_sync_active",
+            "device_id", "employee_id", "action",
+            unique=True,
+            postgresql_where=text(
+                "status IN ('PENDING', 'IN_PROGRESS', 'RETRY')"
+            ),
         ),
     )
 
