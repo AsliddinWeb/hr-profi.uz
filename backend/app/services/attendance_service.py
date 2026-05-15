@@ -150,6 +150,39 @@ async def _last_record(
     ).scalar_one_or_none()
 
 
+async def _last_record_today(
+    db: AsyncSession, employee_id: UUID, day: date
+) -> AttendanceRecord | None:
+    """Today's latest check-in / check-out for the employee.
+
+    Used to decide "already_checked_in" / "no_active_check_in" — those
+    are *daily* states, not lifetime ones. The previous version scanned
+    the whole history, so an employee who checked in yesterday and
+    forgot to check out couldn't check in today (the check_in path saw
+    yesterday's open IN and refused).
+
+    The day boundary uses local-Tashkent semantics so a "today" record
+    written at 23:50 local stays inside the same day even though
+    24-hour UTC wraps differently.
+    """
+    start_local = datetime.combine(day, time.min, tzinfo=TZ_LOCAL)
+    end_local = start_local + timedelta(days=1)
+    start_utc = start_local.astimezone(timezone.utc)
+    end_utc = end_local.astimezone(timezone.utc)
+    return (
+        await db.execute(
+            select(AttendanceRecord)
+            .where(
+                AttendanceRecord.employee_id == employee_id,
+                AttendanceRecord.timestamp >= start_utc,
+                AttendanceRecord.timestamp < end_utc,
+            )
+            .order_by(desc(AttendanceRecord.timestamp))
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+
 def _is_within_geofence(branch: Branch | None, lat: float | None, lng: float | None) -> bool:
     if branch is None or branch.latitude is None or branch.longitude is None:
         return True  # No geofence configured — accept.
@@ -255,15 +288,20 @@ async def check_in_for_employee(
     # Mobile/PWA goes through MOBILE_APP; kiosk through KIOSK_TABLET;
     # face-ID hardware through its own webhook with its own gate.
     await _enforce_method_toggle(db, emp.company_id, method)
-    last = await _last_record(db, emp.id)
-    if last and last.check_type == CheckType.CHECK_IN:
-        raise ConflictError("attendance.already_checked_in")
 
     now = datetime.now(timezone.utc)
     # Local time for *shift comparisons* (start_time / end_time live in
     # local Tashkent time, naive). UTC stays for the stored timestamp.
     now_local = now.astimezone(TZ_LOCAL)
     today = now_local.date()
+
+    # "Already checked in" is a *today* state, not a lifetime one. The
+    # original check looked at the absolute last record, so an employee
+    # who checked in yesterday and never checked out couldn't check in
+    # again today. Scope the lookup to today's date in local time.
+    last_today = await _last_record_today(db, emp.id, today)
+    if last_today and last_today.check_type == CheckType.CHECK_IN:
+        raise ConflictError("attendance.already_checked_in")
     await _block_if_on_leave(db, emp.id, today)
 
     sched, tpl = await _scheduled_shift(db, emp.id, today)
@@ -389,13 +427,17 @@ async def check_out_for_employee(
 ) -> AttendanceRecord:
     """Lower-level check-out (kiosk / face-ID device path)."""
     await _enforce_method_toggle(db, emp.company_id, method)
-    last = await _last_record(db, emp.id)
-    if not last or last.check_type != CheckType.CHECK_IN:
-        raise ConflictError("attendance.no_active_check_in")
 
     now = datetime.now(timezone.utc)
     now_local = now.astimezone(TZ_LOCAL)
     today = now_local.date()
+
+    # Same daily scoping as check_in_for_employee: the "no active
+    # check-in" rule applies *today*, not across the whole history.
+    last_today = await _last_record_today(db, emp.id, today)
+    if not last_today or last_today.check_type != CheckType.CHECK_IN:
+        raise ConflictError("attendance.no_active_check_in")
+
     await _block_if_on_leave(db, emp.id, today)
     _, tpl = await _scheduled_shift(db, emp.id, today)
 
