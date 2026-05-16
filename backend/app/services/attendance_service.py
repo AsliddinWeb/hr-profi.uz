@@ -10,6 +10,7 @@ Phase 2 scope:
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 import binascii
 import logging
@@ -192,6 +193,55 @@ def _is_within_geofence(branch: Branch | None, lat: float | None, lng: float | N
     return distance <= float(branch.geofence_radius_m or 0)
 
 
+async def _verify_self_face(
+    selfie_base64: str | None, emp: Employee
+) -> float | None:
+    """Face-match the incoming PWA selfie against the employee's enrolled
+    embedding.
+
+    Returns:
+      * ``None`` when no verification was performed (no selfie sent, no
+        embedding on record, or face_recognition couldn't decode the
+        image). The caller should treat this as "skip" — historical
+        behaviour for un-enrolled employees is preserved.
+      * A float in [0, 1] when the selfie matched the enrolled face.
+        Higher = closer.
+
+    Raises:
+      ``ConflictError("attendance.face_mismatch")`` if a face was
+      detected but doesn't match the employee on file. Same UX as
+      the kiosk: a different person can't check in on someone else's
+      logged-in PWA.
+    """
+    if not selfie_base64 or not emp.face_embedding:
+        return None
+
+    from app.services import face_service
+
+    # Heavy CPU path — keep it off the event loop so concurrent
+    # requests aren't blocked while dlib runs.
+    enrolled = face_service.decode_embedding(emp.face_embedding)
+    if enrolled is None:
+        return None
+    target = await asyncio.to_thread(face_service.compute_embedding, selfie_base64)
+    if target is None:
+        # Selfie has no detectable face. Don't refuse on this alone —
+        # could just be poor lighting; the existing geofence + manual
+        # review flow already covers the "what was actually in the
+        # photo" question.
+        return None
+
+    match = await asyncio.to_thread(
+        face_service.find_match,
+        target,
+        [face_service.Candidate(employee_id=emp.id, embedding=enrolled)],
+    )
+    if match is None:
+        # Different person → hard refuse, mirrors the kiosk reject path.
+        raise ConflictError("attendance.face_mismatch")
+    return match.score
+
+
 def _geofence_distance_m(
     branch: Branch | None, lat: float | None, lng: float | None
 ) -> float | None:
@@ -368,6 +418,16 @@ async def check_in_for_employee(
         raise ConflictError("attendance.outside_geofence_unknown")
     status = AttendanceStatus.VALID if in_geofence else AttendanceStatus.SUSPICIOUS
 
+    # Face-match the selfie against the employee's enrolled embedding
+    # for the mobile path — same "Siz emassiz" guard the kiosk runs.
+    # Returns ``None`` when verification is skipped (no enrolment yet,
+    # no selfie sent, or no face detectable in frame). Raises
+    # ConflictError("attendance.face_mismatch") on a clean different-
+    # person match.
+    face_match_score: float | None = None
+    if method == AttendanceMethod.MOBILE_APP:
+        face_match_score = await _verify_self_face(data.selfie_base64, emp)
+
     selfie_url = _maybe_upload_selfie(data.selfie_base64, company_id=emp.company_id)
 
     rec = AttendanceRecord(
@@ -381,6 +441,7 @@ async def check_in_for_employee(
         longitude=data.longitude,
         accuracy_m=data.accuracy_m,
         selfie_url=selfie_url,
+        face_match_score=face_match_score,
         is_late=is_late,
         late_minutes=late_minutes,
         is_early_leave=False,
@@ -511,6 +572,12 @@ async def check_out_for_employee(
         raise ConflictError("attendance.outside_geofence_unknown")
     status = AttendanceStatus.VALID if in_geofence else AttendanceStatus.SUSPICIOUS
 
+    # Same self-face guard as check_in_for_employee. Skipped silently
+    # for un-enrolled employees so legacy users keep working.
+    face_match_score: float | None = None
+    if method == AttendanceMethod.MOBILE_APP:
+        face_match_score = await _verify_self_face(data.selfie_base64, emp)
+
     selfie_url = _maybe_upload_selfie(data.selfie_base64, company_id=emp.company_id)
 
     rec = AttendanceRecord(
@@ -524,6 +591,7 @@ async def check_out_for_employee(
         longitude=data.longitude,
         accuracy_m=data.accuracy_m,
         selfie_url=selfie_url,
+        face_match_score=face_match_score,
         is_late=False,
         late_minutes=0,
         is_early_leave=is_early_leave,

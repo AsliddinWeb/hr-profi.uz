@@ -55,7 +55,8 @@
     "no_active_check_in": "Avval CHECK-IN qilishingiz kerak",
     "on_leave": "Bugun ta'tildasiz — qayd etish mumkin emas",
     "outside_geofence": "Avval ishxonaga boring — siz filialdan {distance_m} m uzoqdasiz (ruxsat: {radius_m} m)",
-    "outside_geofence_unknown": "Avval ishxonaga boring — joylashuv filialdan tashqarida"
+    "outside_geofence_unknown": "Avval ishxonaga boring — joylashuv filialdan tashqarida",
+    "face_mismatch": "Siz emassiz — yuz tasdiqlanmadi. Iltimos, o'zingiz selfi qiling va qaytadan urining."
   },
   "salary": {
     "period_not_found": "Oylik davri topilmadi"
