@@ -53,7 +53,9 @@
   "attendance": {
     "already_checked_in": "Siz allaqachon kelganingiz qayd etilgan",
     "no_active_check_in": "Avval CHECK-IN qilishingiz kerak",
-    "on_leave": "Bugun ta'tildasiz — qayd etish mumkin emas"
+    "on_leave": "Bugun ta'tildasiz — qayd etish mumkin emas",
+    "outside_geofence": "Avval ishxonaga boring — siz filialdan {distance_m} m uzoqdasiz (ruxsat: {radius_m} m)",
+    "outside_geofence_unknown": "Avval ishxonaga boring — joylashuv filialdan tashqarida"
   },
   "salary": {
     "period_not_found": "Oylik davri topilmadi"

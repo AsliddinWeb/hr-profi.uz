@@ -192,6 +192,24 @@ def _is_within_geofence(branch: Branch | None, lat: float | None, lng: float | N
     return distance <= float(branch.geofence_radius_m or 0)
 
 
+def _geofence_distance_m(
+    branch: Branch | None, lat: float | None, lng: float | None
+) -> float | None:
+    """Distance from the branch centroid in metres. Returns ``None`` when
+    there isn't enough info to compute one (no branch coords, or no GPS
+    fix from the client). Used to surface "you are X m away" in the
+    reject toast without recomputing."""
+    if (
+        branch is None
+        or branch.latitude is None
+        or branch.longitude is None
+        or lat is None
+        or lng is None
+    ):
+        return None
+    return _haversine_m(branch.latitude, branch.longitude, lat, lng)
+
+
 async def _resolve_branch(db: AsyncSession, branch_id: UUID | None) -> Branch | None:
     if branch_id is None:
         return None
@@ -327,6 +345,27 @@ async def check_in_for_employee(
 
     branch = await _resolve_branch(db, data.branch_id or emp.branch_id)
     in_geofence = _is_within_geofence(branch, data.latitude, data.longitude)
+    # PWA / mobile app: the employee's own phone reports the location,
+    # so an out-of-geofence reading is a genuine policy failure (they
+    # haven't reached the office yet). Refuse the check-in entirely
+    # with the distance attached so the toast can say "you are X m
+    # away". Kiosk / face-id paths are physically anchored at the
+    # branch; their GPS is either absent or the device's location,
+    # so the gate doesn't apply there.
+    if method == AttendanceMethod.MOBILE_APP and not in_geofence:
+        dist = _geofence_distance_m(branch, data.latitude, data.longitude)
+        radius = float(branch.geofence_radius_m or 0) if branch else 0.0
+        # When we have GPS + branch coords, surface the exact gap so
+        # the toast reads "you are 412 m away (radius 150 m)".
+        # Otherwise fall back to a code without placeholders so the
+        # translated string doesn't render "None m".
+        if dist is not None and radius:
+            raise ConflictError(
+                "attendance.outside_geofence",
+                distance_m=int(round(dist)),
+                radius_m=int(round(radius)),
+            )
+        raise ConflictError("attendance.outside_geofence_unknown")
     status = AttendanceStatus.VALID if in_geofence else AttendanceStatus.SUSPICIOUS
 
     selfie_url = _maybe_upload_selfie(data.selfie_base64, company_id=emp.company_id)
@@ -453,6 +492,23 @@ async def check_out_for_employee(
 
     branch = await _resolve_branch(db, data.branch_id or emp.branch_id)
     in_geofence = _is_within_geofence(branch, data.latitude, data.longitude)
+    # Same geofence policy as check-in for the mobile path: reject the
+    # action when the employee's GPS puts them outside the branch
+    # radius. Kiosk / face-id keep going through.
+    if method == AttendanceMethod.MOBILE_APP and not in_geofence:
+        dist = _geofence_distance_m(branch, data.latitude, data.longitude)
+        radius = float(branch.geofence_radius_m or 0) if branch else 0.0
+        # When we have GPS + branch coords, surface the exact gap so
+        # the toast reads "you are 412 m away (radius 150 m)".
+        # Otherwise fall back to a code without placeholders so the
+        # translated string doesn't render "None m".
+        if dist is not None and radius:
+            raise ConflictError(
+                "attendance.outside_geofence",
+                distance_m=int(round(dist)),
+                radius_m=int(round(radius)),
+            )
+        raise ConflictError("attendance.outside_geofence_unknown")
     status = AttendanceStatus.VALID if in_geofence else AttendanceStatus.SUSPICIOUS
 
     selfie_url = _maybe_upload_selfie(data.selfie_base64, company_id=emp.company_id)

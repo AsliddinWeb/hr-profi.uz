@@ -53,7 +53,9 @@
   "attendance": {
     "already_checked_in": "Вы уже отметили приход",
     "no_active_check_in": "Сначала нужно отметить приход (CHECK-IN)",
-    "on_leave": "Сегодня вы в отпуске — отметка невозможна"
+    "on_leave": "Сегодня вы в отпуске — отметка невозможна",
+    "outside_geofence": "Сначала зайдите в офис — вы в {distance_m} м от филиала (радиус: {radius_m} м)",
+    "outside_geofence_unknown": "Сначала зайдите в офис — местоположение вне филиала"
   },
   "salary": {
     "period_not_found": "Период оплаты не найден"

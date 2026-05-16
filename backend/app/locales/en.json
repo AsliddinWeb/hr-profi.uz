@@ -53,7 +53,9 @@
   "attendance": {
     "already_checked_in": "You are already checked in",
     "no_active_check_in": "You must check in first",
-    "on_leave": "You are on approved leave today — check-in disabled"
+    "on_leave": "You are on approved leave today — check-in disabled",
+    "outside_geofence": "Reach the office first — you are {distance_m} m from the branch (allowed: {radius_m} m)",
+    "outside_geofence_unknown": "Reach the office first — your location is outside the branch"
   },
   "salary": {
     "period_not_found": "Salary period not found"
