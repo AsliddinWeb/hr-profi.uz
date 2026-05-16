@@ -79,15 +79,24 @@ export function LiveTab() {
     return rows.filter((r) => {
       if (branchFilter !== "all" && r.branch_id !== branchFilter) return false;
       if (statusFilter !== "all") {
-        // The "IN_PROGRESS" chip means "currently inside the building",
-        // not literally ``shift_status === IN_PROGRESS``. A late employee
-        // who's still on the floor lands in shift_status=LATE but is also
-        // currently in — the operator clicking the green "Hozir
-        // ishlamoqda 4" pill expects to see those four cards. Match the
-        // counter (``r.is_currently_in``) so chip count and chip click
-        // are consistent.
+        // Filter rules below mirror the chip counters in ``stats`` so the
+        // badge number and the cards-on-screen always agree. The
+        // chip-click flows used to use strict ``shift_status === filter``
+        // matches, which silently dropped rows for two pills:
+        //
+        //   * "Hozir ishlamoqda" — counts rows where ``is_currently_in``;
+        //     a LATE employee still on the floor lives in
+        //     ``shift_status === LATE`` but is also currently_in, so the
+        //     strict match hid them.
+        //   * "Kelgan" — counts rows where ``shift_status`` is
+        //     PRESENT *or* IN_PROGRESS; the strict match showed only the
+        //     PRESENT subset, so a badge of 10 came with 4 visible cards.
         if (statusFilter === "IN_PROGRESS") {
           if (!r.is_currently_in) return false;
+        } else if (statusFilter === "PRESENT") {
+          if (r.shift_status !== "PRESENT" && r.shift_status !== "IN_PROGRESS") {
+            return false;
+          }
         } else if (r.shift_status !== statusFilter) {
           return false;
         }
