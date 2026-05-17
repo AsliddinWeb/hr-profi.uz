@@ -4,10 +4,12 @@ from __future__ import annotations
 from datetime import date as Date
 from datetime import datetime, time, timedelta, timezone
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import desc, func, select
 
+from app.config import settings as _app_settings
 from app.core.deps import (
     CurrentUser,
     DbDep,
@@ -328,10 +330,21 @@ async def reject_record(
 # ---------- Aggregate views ---------------------------------------------------
 
 
+_TZ_LOCAL = ZoneInfo(_app_settings.tz)
+
+
 def _day_bounds(day: Date) -> tuple[datetime, datetime]:
-    """UTC day window. Future improvement: use Company.timezone instead."""
-    start = datetime.combine(day, time.min, tzinfo=timezone.utc)
-    return start, start + timedelta(days=1)
+    """Local-day window expressed as UTC datetimes for SQL comparisons.
+
+    Records' ``timestamp`` column is timezone-aware UTC. The admin Live
+    tab + Records tab treat "today" as a Tashkent-local day; a UTC
+    window would split off the early-morning local hours (00:00–04:59
+    local = previous UTC day) into the wrong bucket. Mirrors what
+    /attendance/today on the PWA side now does after the same fix.
+    """
+    start_local = datetime.combine(day, time.min, tzinfo=_TZ_LOCAL)
+    end_local = start_local + timedelta(days=1)
+    return start_local.astimezone(timezone.utc), end_local.astimezone(timezone.utc)
 
 
 @router.get(
@@ -353,7 +366,12 @@ async def daily_overview(
     means the employee is currently inside.
     """
     company_id = _company_id(user, tenant)
-    day = target or datetime.now(timezone.utc).date()
+    # Use Tashkent-local "today" as the default — matches what the
+    # admin sees on the dashboard wall-clock and what _day_bounds()
+    # now uses for the SQL window. Without this, the page loaded at
+    # 02:00 local would default to *yesterday's* date and hide every
+    # check-in posted between 00:00–04:59 local time.
+    day = target or datetime.now(_TZ_LOCAL).date()
     start, end = _day_bounds(day)
 
     emp_stmt = apply_branch_scope(
@@ -637,7 +655,11 @@ async def monthly_overview(
     working_days_setting = company.settings.get("working_days", [1, 2, 3, 4, 5])
     if not isinstance(working_days_setting, list):
         working_days_setting = [1, 2, 3, 4, 5]
-    today = datetime.now(timezone.utc).date()
+    # Local "today" so a Tashkent admin viewing the monthly report
+    # between 19:00 UTC (00:00 local) and 19:00 UTC of the next day
+    # sees the correct workday count for the day they actually see on
+    # the clock.
+    today = datetime.now(_TZ_LOCAL).date()
 
     # Workdays in the month (only past or today — we don't pre-flag future
     # absences).
