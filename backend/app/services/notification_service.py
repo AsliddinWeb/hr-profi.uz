@@ -100,6 +100,20 @@ async def notify(
         )
     except Exception:  # noqa: BLE001
         logger.exception("web push failed for user=%s", user_id)
+
+    # Telegram fan-out: enqueued to Celery so a slow / failing Bot API
+    # call can't slow down the request that created the notification.
+    # The task filters by ``enabled_categories`` and per-company bot
+    # config; nothing happens for companies that haven't set up a bot.
+    if company_id is not None and commit:
+        try:
+            from app.tasks.telegram_tasks import notify_subscribers
+
+            notify_subscribers.delay(str(n.id))
+        except Exception:  # noqa: BLE001
+            logger.exception(
+                "telegram enqueue failed for notification=%s", n.id
+            )
     return n
 
 
@@ -154,6 +168,21 @@ async def notify_company_admins(
         )
     except Exception:  # noqa: BLE001
         logger.exception("admin broadcast failed for company=%s", company_id)
+
+    # One Telegram fan-out per logical event (not per admin user). Each
+    # subscriber receives a single message even though we created N
+    # Notification rows.
+    if rows:
+        try:
+            from app.tasks.telegram_tasks import broadcast_company
+
+            broadcast_company.delay(
+                str(company_id), category.value, title, body
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception(
+                "telegram admin broadcast enqueue failed company=%s", company_id
+            )
     return len(rows)
 
 
@@ -206,6 +235,17 @@ async def notify_branch_managers(
         )
     if rows:
         await db.commit()
+        try:
+            from app.tasks.telegram_tasks import broadcast_company
+
+            broadcast_company.delay(
+                str(company_id), category.value, title, body
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception(
+                "telegram branch broadcast enqueue failed company=%s",
+                company_id,
+            )
     return len(rows)
 
 

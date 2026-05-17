@@ -16,6 +16,7 @@ celery_app = Celery(
         "app.tasks.device_tasks",
         "app.tasks.report_tasks",
         "app.tasks.face_tasks",
+        "app.tasks.telegram_tasks",
     ],
 )
 

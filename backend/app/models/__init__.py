@@ -64,6 +64,7 @@ from app.models.shift import (
     ShiftTemplate,
     ShiftType,
 )
+from app.models.telegram import TelegramSettings, TelegramSubscriber
 from app.models.user import User, UserStatus
 
 __all__ = [
@@ -120,6 +121,8 @@ __all__ = [
     "ShiftSchedule",
     "ShiftTemplate",
     "ShiftType",
+    "TelegramSettings",
+    "TelegramSubscriber",
     "TenantMixin",
     "TimestampMixin",
     "TransactionType",

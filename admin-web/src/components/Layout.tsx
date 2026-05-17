@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import {
   Bell,
+  Bot,
   Building2,
   Calendar,
   CalendarDays,
@@ -138,6 +139,7 @@ function companyNav(t: (k: string) => string): NavSection[] {
         { to: "/app/devices", label: t("nav.devices"), icon: Cpu },
         { to: "/app/kiosks", label: t("nav.kiosks"), icon: Tablet },
         { to: "/app/notifications", label: t("nav.notifications"), icon: Bell },
+        { to: "/app/telegram", label: t("nav.telegram"), icon: Bot },
         { to: "/app/users", label: t("nav.users"), icon: ShieldCheck },
         { to: "/app/audit", label: t("nav.audit"), icon: Scroll },
         { to: "/app/reports", label: t("nav.reports"), icon: FileSpreadsheet },

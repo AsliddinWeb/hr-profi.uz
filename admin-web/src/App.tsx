@@ -46,6 +46,7 @@ import { SettingsHubPage } from "@/pages/app/settings/SettingsHubPage";
 import { NotificationsPage } from "@/pages/app/notifications/NotificationsPage";
 import { AuditLogsPage } from "@/pages/app/audit/AuditLogsPage";
 import { ReportsHubPage } from "@/pages/app/reports/ReportsHubPage";
+import { TelegramPage } from "@/pages/app/telegram/TelegramPage";
 import { useAuthStore } from "@/stores/auth";
 import { api } from "@/lib/api";
 import type { User } from "@/lib/types";
@@ -132,6 +133,7 @@ export default function App() {
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="audit" element={<AuditLogsPage />} />
           <Route path="reports" element={<ReportsHubPage />} />
+          <Route path="telegram" element={<TelegramPage />} />
         </Route>
       </Route>
 

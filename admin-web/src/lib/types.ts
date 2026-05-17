@@ -235,6 +235,39 @@ export interface NotificationPreferences {
   items: NotificationPreferenceItem[];
 }
 
+// Telegram bot ---------------------------------------------------------
+
+export interface TelegramSettings {
+  id: string;
+  bot_token_masked: string | null;
+  bot_username: string | null;
+  bot_first_name: string | null;
+  is_active: boolean;
+  last_verified_at: string | null;
+  updated_at: string;
+  event_filters: Record<string, boolean>;
+}
+
+export interface TelegramEventDef {
+  key: string;
+  category: NotificationCategory;
+  default: boolean;
+}
+
+export interface TelegramSubscriber {
+  id: string;
+  employee_id: string;
+  employee_full_name: string | null;
+  chat_id: string;
+  label: string | null;
+  enabled_categories: NotificationCategory[];
+  is_active: boolean;
+  last_sent_at: string | null;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // Dashboard --------------------------------------------------------------
 
 export interface DashboardCounts {

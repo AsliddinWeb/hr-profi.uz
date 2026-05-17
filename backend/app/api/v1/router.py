@@ -24,6 +24,7 @@ from app.api.v1 import (
     reports,
     salary,
     shifts,
+    telegram,
     uploads,
     users,
 )
@@ -56,6 +57,7 @@ api_router.include_router(plans.router)
 api_router.include_router(uploads.router)
 api_router.include_router(audit.router)
 api_router.include_router(reports.router)
+api_router.include_router(telegram.router)
 
 
 __all__ = ["api_router"]

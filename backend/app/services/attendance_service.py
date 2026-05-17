@@ -194,7 +194,7 @@ def _is_within_geofence(branch: Branch | None, lat: float | None, lng: float | N
 
 
 async def _verify_self_face(
-    selfie_base64: str | None, emp: Employee
+    db: AsyncSession, selfie_base64: str | None, emp: Employee
 ) -> float | None:
     """Face-match the incoming PWA selfie against the employee's enrolled
     embedding.
@@ -238,6 +238,13 @@ async def _verify_self_face(
     )
     if match is None:
         # Different person → hard refuse, mirrors the kiosk reject path.
+        # Surface to Telegram before raising — otherwise the boss never
+        # learns that someone tried to check in as this employee.
+        await _emit_telegram_event(
+            db, company_id=emp.company_id,
+            event_key="face_mismatch", emp=emp,
+            extra="PWA / mobile",
+        )
         raise ConflictError("attendance.face_mismatch")
     return match.score
 
@@ -426,7 +433,7 @@ async def check_in_for_employee(
     # person match.
     face_match_score: float | None = None
     if method == AttendanceMethod.MOBILE_APP:
-        face_match_score = await _verify_self_face(data.selfie_base64, emp)
+        face_match_score = await _verify_self_face(db, data.selfie_base64, emp)
 
     selfie_url = _maybe_upload_selfie(data.selfie_base64, company_id=emp.company_id)
 
@@ -459,6 +466,22 @@ async def check_in_for_employee(
     # Celery beat) and the admin LiveEarningsCard's frontend-computed
     # value diverges from what the employee sees.
     _enqueue_salary_recompute(emp.id, today)
+    # Telegram fan-out (filter-gated; no in-app bell row created):
+    # always fires the generic ``check_in`` event so a "watching"
+    # admin can see routine arrivals; the more interesting
+    # ``late_check_in`` lands on top when the row was actually late.
+    await _emit_telegram_event(
+        db, company_id=emp.company_id, event_key="check_in", emp=emp,
+    )
+    if is_late and late_minutes > 0:
+        hours, mins = divmod(late_minutes, 60)
+        extra = (
+            f"+{hours} soat {mins} daqiqa kech" if hours else f"+{mins} daqiqa kech"
+        )
+        await _emit_telegram_event(
+            db, company_id=emp.company_id,
+            event_key="late_check_in", emp=emp, extra=extra,
+        )
     if not in_geofence:
         # Store i18n key + arguments alongside the English fallback. The
         # frontend prefers ``payload.t_key`` over the stored title when
@@ -576,7 +599,7 @@ async def check_out_for_employee(
     # for un-enrolled employees so legacy users keep working.
     face_match_score: float | None = None
     if method == AttendanceMethod.MOBILE_APP:
-        face_match_score = await _verify_self_face(data.selfie_base64, emp)
+        face_match_score = await _verify_self_face(db, data.selfie_base64, emp)
 
     selfie_url = _maybe_upload_selfie(data.selfie_base64, company_id=emp.company_id)
 
@@ -604,6 +627,26 @@ async def check_out_for_employee(
     await db.commit()
     await db.refresh(rec)
     _enqueue_salary_recompute(emp.id, today)
+    # Telegram fan-out (filter-gated; no in-app bell row created): same
+    # pattern as check-in — generic event always fires; the
+    # ``early_check_out`` variant only fires when the row was actually
+    # early. Useful for owners spotting people clocking out before the
+    # shift end.
+    await _emit_telegram_event(
+        db, company_id=emp.company_id, event_key="check_out", emp=emp,
+    )
+    if is_early_leave and tpl and tpl.end_time is not None:
+        scheduled_end_local = datetime.combine(today, tpl.end_time, tzinfo=TZ_LOCAL)
+        early_min = int((scheduled_end_local - now_local).total_seconds() / 60)
+        if early_min > 0:
+            hours, mins = divmod(early_min, 60)
+            extra = (
+                f"-{hours} soat {mins} daqiqa erta" if hours else f"-{mins} daqiqa erta"
+            )
+            await _emit_telegram_event(
+                db, company_id=emp.company_id,
+                event_key="early_check_out", emp=emp, extra=extra,
+            )
     if not in_geofence:
         await _notify_anomaly(
             db,
@@ -621,6 +664,57 @@ async def check_out_for_employee(
             },
         )
     return rec
+
+
+async def _emit_telegram_event(
+    db: AsyncSession,
+    *,
+    company_id: UUID,
+    event_key: str,
+    emp: Employee,
+    extra: str | None = None,
+) -> None:
+    """Fire one Telegram-only event (no in-app bell). Gated by the
+    company's ``event_filters`` toggle. Body lines are short and
+    designed to be scannable in a Telegram feed — name, code, time,
+    plus the caller-provided ``extra`` (e.g. "+12 daqiqa kech")."""
+    try:
+        from app.services import telegram_dispatch
+
+        local_now = datetime.now(timezone.utc).astimezone(TZ_LOCAL)
+        when = local_now.strftime("%H:%M")
+        name = emp.full_name or emp.employee_code
+        # Title carries the action; body holds context. We don't
+        # bother translating server-side here because the bot
+        # operator is the boss reading on their phone — they pick the
+        # company's working language at integration time; we mirror it
+        # to avoid having to thread Accept-Language through workers.
+        title_map = {
+            "check_in":         f"Keldi: {name}",
+            "check_out":        f"Ketdi: {name}",
+            "late_check_in":    f"Kech keldi: {name}",
+            "early_check_out":  f"Erta ketdi: {name}",
+            "face_mismatch":    f"Yuz mos kelmadi: {name}",
+        }
+        title = title_map.get(event_key, f"{event_key}: {name}")
+        body_parts = [
+            f"#{emp.employee_code} · {when}",
+        ]
+        if extra:
+            body_parts.append(extra)
+        await telegram_dispatch.telegram_event(
+            db,
+            company_id=company_id,
+            event_key=event_key,
+            title=title,
+            body="\n".join(body_parts),
+        )
+    except Exception:  # noqa: BLE001
+        import logging
+
+        logging.getLogger(__name__).exception(
+            "telegram event emit failed event=%s emp=%s", event_key, emp.id
+        )
 
 
 async def _notify_anomaly(

@@ -47,6 +47,7 @@ ROLE_PERMISSIONS: dict[Role, list[str]] = {
         "user.*",
         "audit.read",
         "report.*",
+        "telegram.*",
     ],
     Role.HR_MANAGER: [
         "company.read",
