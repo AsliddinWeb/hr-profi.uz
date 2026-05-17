@@ -764,8 +764,16 @@ async def _notify_anomaly(
 
 async def today_status(db: AsyncSession, user: User) -> TodayStatus:
     emp = await _employee_for_user(db, user)
-    today = datetime.now(timezone.utc).date()
-    start = datetime.combine(today, time.min, tzinfo=timezone.utc)
+    # The "today" window must use Tashkent-local day boundaries — not UTC
+    # — otherwise an early-morning local check-in (e.g. 04:52 local =
+    # 23:52 UTC of the previous day) falls outside the UTC-anchored
+    # window and the endpoint reports ``is_working=False`` even though
+    # the record exists. The /attendance/history endpoint uses
+    # local-day semantics, so without this the hero card and the
+    # records list contradicted each other.
+    now_local = datetime.now(TZ_LOCAL)
+    today = now_local.date()
+    start = datetime.combine(today, time.min, tzinfo=TZ_LOCAL)
     end = start + timedelta(days=1)
 
     rows = (
@@ -809,7 +817,10 @@ async def today_status(db: AsyncSession, user: User) -> TodayStatus:
     on_leave = False
     leave_type_name: str | None = None
     leave_end_date: date | None = None
-    today = datetime.now(timezone.utc).date()
+    # ``today`` already computed above in local time; the rebinding to
+    # UTC here was leftover from before the local-day fix and made
+    # the leave check miss approved leaves that started "today" in
+    # local but "yesterday" in UTC.
     from app.models.leave import LeaveRequest, LeaveStatus, LeaveType
 
     leave_row = (
