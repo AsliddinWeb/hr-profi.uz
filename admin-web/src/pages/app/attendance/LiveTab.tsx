@@ -167,10 +167,18 @@ export function LiveTab() {
     query.trim() !== "" || branchFilter !== "all" || statusFilter !== "all";
 
   const showElapsedFor = (row: DailyOverviewRow): string => {
-    if (!row.is_currently_in || !row.first_check_in) return fmtHM(row.minutes_worked);
-    const startMs = new Date(row.first_check_in).getTime();
-    const elapsed = (Date.now() - startMs) / 60_000;
-    return fmtHM(elapsed);
+    // Live-ticking elapsed for in-progress rows so the dashboard
+    // doesn't look stale between refetches. Server-computed value
+    // wins when the employee has already checked out.
+    let minutes = row.minutes_worked;
+    if (row.is_currently_in && row.first_check_in) {
+      const startMs = new Date(row.first_check_in).getTime();
+      minutes = (Date.now() - startMs) / 60_000;
+    }
+    return fmtDurationShort(minutes, {
+      hour: t("attendance.unit_hour"),
+      minute: t("attendance.unit_min"),
+    });
   };
 
   return (
@@ -377,7 +385,7 @@ export function LiveTab() {
           {t("common.no_data")}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((r) => (
             <EmployeeLiveCard
               key={r.employee_id}
@@ -513,7 +521,7 @@ function EmployeeLiveCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "group relative overflow-hidden rounded-xl border p-4 pl-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md",
+        "group relative overflow-hidden rounded-2xl border p-5 pl-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md",
         c.border,
         c.bg,
         c.hover
@@ -522,48 +530,58 @@ function EmployeeLiveCard({
       {/* Left accent ribbon — bolder than a top stripe and reads as an at-a-glance status */}
       <span className={cn("absolute inset-y-0 left-0 w-1.5", c.accent)} />
 
-      {/* Full name gets its own top line — wraps freely instead of being
-          truncated so long Uzbek triple-name forms are readable end-to-end. */}
-      <div className="text-sm font-semibold leading-tight text-slate-900 group-hover:text-brand-700">
-        {row.full_name}
-      </div>
-
-      <div className="mt-2 flex items-center gap-3">
-        <Avatar photo={row.photo_url} name={row.full_name} live={row.is_currently_in} />
+      {/* Header: avatar | name+position | status badge.
+          Bigger avatar + dedicated rows for each detail so a glance
+          tells: who, what role, what state. */}
+      <div className="flex items-start gap-3">
+        <Avatar
+          photo={row.photo_url}
+          name={row.full_name}
+          live={row.is_currently_in}
+          size="lg"
+        />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[11px] text-slate-500">
+          <div className="text-base font-semibold leading-tight text-slate-900 group-hover:text-brand-700">
+            {row.full_name}
+          </div>
+          <div className="mt-0.5 truncate text-xs text-slate-500">
             {row.position || row.employee_code}
           </div>
         </div>
+      </div>
+
+      <div className="mt-3">
         <span
           className={cn(
-            "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ring-1",
+            "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ring-1",
             c.badgeText,
             c.badgeBg
           )}
         >
           {row.is_currently_in && (
-            <span className="relative flex size-1.5">
+            <span className="relative flex size-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
+              <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
             </span>
           )}
           {displayLabel}
         </span>
       </div>
 
-      {/* Times row */}
-      <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+      {/* Times row — bigger numbers so they read like a dashboard, not
+          like fine print. */}
+      <div className="mt-4 grid grid-cols-3 gap-2.5">
         <Tile
           tone="emerald"
-          icon={<LogIn className="size-3" />}
+          icon={<LogIn className="size-3.5" />}
           label={t("attendance.live_check_in")}
           value={fmtTime(row.first_check_in, locale)}
           missing={!row.first_check_in}
+          mono
         />
         <Tile
           tone={row.is_currently_in ? "emerald" : "slate"}
-          icon={<LogOut className="size-3" />}
+          icon={<LogOut className="size-3.5" />}
           label={t("attendance.live_check_out")}
           value={
             row.is_currently_in
@@ -572,20 +590,26 @@ function EmployeeLiveCard({
           }
           highlight={row.is_currently_in}
           missing={!row.is_currently_in && !row.last_check_out}
+          mono={!row.is_currently_in}
         />
         <Tile
           tone="brand"
-          icon={<Clock className="size-3" />}
+          icon={<Clock className="size-3.5" />}
           label={t("attendance.live_worked")}
+          // Spelled-out duration ("5h 23m") avoids being misread as a
+          // clock time next to the actual time tiles. ``elapsedLabel``
+          // is computed by the parent and ticks live for in-progress
+          // rows.
           value={elapsedLabel}
           highlight={row.is_currently_in}
+          mono={false}
         />
       </div>
 
       {/* Late / OT pills */}
-      <div className="mt-3 flex flex-wrap gap-1.5 text-[11px]">
+      <div className="mt-3.5 flex flex-wrap gap-1.5 text-[11px]">
         {row.late_minutes > 0 && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-800 ring-1 ring-amber-200">
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-800 ring-1 ring-amber-200">
             <Clock className="size-3" />
             +{fmtDurationShort(row.late_minutes, {
               hour: t("attendance.unit_hour"),
@@ -595,7 +619,7 @@ function EmployeeLiveCard({
           </span>
         )}
         {row.overtime_minutes > 0 && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-800 ring-1 ring-emerald-200">
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 font-semibold text-emerald-800 ring-1 ring-emerald-200">
             <TrendingUp className="size-3" />
             +{fmtDurationShort(row.overtime_minutes, {
               hour: t("attendance.unit_hour"),
@@ -605,13 +629,13 @@ function EmployeeLiveCard({
           </span>
         )}
         {!isAbsent && row.late_minutes === 0 && row.overtime_minutes === 0 && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700 ring-1 ring-emerald-200/70">
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 font-medium text-emerald-700 ring-1 ring-emerald-200/70">
             <span className="size-1.5 rounded-full bg-emerald-500" />
             {t("attendance.live_clean")}
           </span>
         )}
         {isAbsent && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 font-semibold text-rose-700 ring-1 ring-rose-200">
+          <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-1 font-semibold text-rose-700 ring-1 ring-rose-200">
             <UserX className="size-3" />
             {t("attendance.live_absent_hint")}
           </span>
@@ -652,6 +676,7 @@ function Tile({
   value,
   highlight,
   missing,
+  mono = true,
 }: {
   tone?: "emerald" | "slate" | "brand";
   icon: React.ReactNode;
@@ -659,21 +684,27 @@ function Tile({
   value: string;
   highlight?: boolean;
   missing?: boolean;
+  mono?: boolean;
 }) {
   const c = TILE_TONE[tone];
   return (
     <div
       className={cn(
-        "rounded-lg px-2 py-1.5",
+        "rounded-xl px-3 py-2",
         highlight ? c.highlight : c.idle,
         missing && "opacity-60"
       )}
     >
-      <div className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wider">
+      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider">
         <span className={cn(highlight ? c.iconHighlight : c.iconIdle)}>{icon}</span>
         <span className="text-slate-500">{label}</span>
       </div>
-      <div className="mt-0.5 truncate font-mono text-sm font-bold text-slate-800">
+      <div
+        className={cn(
+          "mt-1 truncate text-base font-bold leading-tight text-slate-900 tabular-nums",
+          mono && "font-mono"
+        )}
+      >
         {value}
       </div>
     </div>
@@ -684,28 +715,46 @@ function Avatar({
   photo,
   name,
   live,
+  size = "md",
 }: {
   photo: string | null;
   name: string;
   live?: boolean;
+  size?: "md" | "lg";
 }) {
+  const sizeClass = size === "lg" ? "size-12 text-sm" : "size-9 text-[10px]";
+  const dotPos =
+    size === "lg" ? "-bottom-0.5 -right-0.5 size-3" : "-bottom-0.5 -right-0.5 size-2.5";
   return (
-    <div className="relative inline-block">
+    <div className="relative inline-block shrink-0">
       {photo ? (
         <img
           src={photo}
           alt=""
-          className="size-9 rounded-full object-cover ring-1 ring-slate-200"
+          className={cn(
+            "rounded-full object-cover ring-2 ring-white shadow-sm",
+            sizeClass.split(" ")[0]
+          )}
         />
       ) : (
-        <span className="flex size-9 items-center justify-center rounded-full bg-brand-50 text-[10px] font-semibold text-brand-700">
+        <span
+          className={cn(
+            "flex items-center justify-center rounded-full bg-brand-100 font-semibold text-brand-700 shadow-sm",
+            sizeClass
+          )}
+        >
           {initialsOf(name) || "•"}
         </span>
       )}
       {live && (
-        <span className="absolute -bottom-0.5 -right-0.5 flex size-2.5">
+        <span className={cn("absolute flex", dotPos)}>
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-          <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+          <span
+            className={cn(
+              "relative inline-flex rounded-full bg-emerald-500 ring-2 ring-white",
+              dotPos.split(" ").slice(-1)[0]
+            )}
+          />
         </span>
       )}
     </div>
