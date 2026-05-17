@@ -104,6 +104,8 @@
     "no": "No",
     "active": "Active",
     "inactive": "Inactive",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
     "back": "Back",
     "select": "Select",
     "expand": "Expand",

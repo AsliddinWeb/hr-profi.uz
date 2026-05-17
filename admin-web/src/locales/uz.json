@@ -105,6 +105,8 @@
     "no": "Yo'q",
     "active": "Faol",
     "inactive": "Faol emas",
+    "activate": "Faollashtirish",
+    "deactivate": "Faolsiz qilish",
     "back": "Orqaga",
     "select": "Tanlang",
     "expand": "Ochish",
