@@ -545,30 +545,44 @@ async def process_face_match(
     # template's start_time, flag late_minutes.
     is_late, late_minutes = False, 0
     if check_type == CheckType.CHECK_IN:
-        from app.services.attendance_service import _scheduled_shift  # avoid cycle
+        from app.services.attendance_service import (
+            TZ_LOCAL,
+            _last_record_today,
+            _scheduled_shift,
+        )
 
-        _, tpl = await _scheduled_shift(db, employee.id, event.timestamp.date())
-        if tpl is None and employee.shift_template_id is not None:
-            # Fallback: schedule row missing for this day, but the
-            # employee has a default template — use its start_time so
-            # late detection still works for ad-hoc days.
-            from app.models.shift import ShiftTemplate
+        # Lateness only on the FIRST check-in of the day. The face-id
+        # device path used to apply lateness on re-entries too, which
+        # inflated the salary engine's late-minutes sum to nonsense.
+        local_day = event.timestamp.astimezone(TZ_LOCAL).date()
+        prior = await _last_record_today(db, employee.id, local_day)
+        is_first_check_in_today = prior is None
 
-            tpl = (
-                await db.execute(
-                    select(ShiftTemplate).where(
-                        ShiftTemplate.id == employee.shift_template_id
+        if is_first_check_in_today:
+            _, tpl = await _scheduled_shift(db, employee.id, local_day)
+            if tpl is None and employee.shift_template_id is not None:
+                # Fallback: schedule row missing for this day, but the
+                # employee has a default template — use its start_time so
+                # late detection still works for ad-hoc days.
+                from app.models.shift import ShiftTemplate
+
+                tpl = (
+                    await db.execute(
+                        select(ShiftTemplate).where(
+                            ShiftTemplate.id == employee.shift_template_id
+                        )
                     )
-                )
-            ).scalar_one_or_none()
-        if tpl is not None and tpl.start_time is not None:
-            scheduled_dt = datetime.combine(
-                event.timestamp.date(), tpl.start_time, tzinfo=timezone.utc
-            )
-            diff = (event.timestamp - scheduled_dt).total_seconds() / 60
-            if diff > 0:
-                late_minutes = int(diff)
-                is_late = True
+                ).scalar_one_or_none()
+            if tpl is not None and tpl.start_time is not None:
+                # ShiftTemplate.start_time is wall-clock local — anchor
+                # in TZ_LOCAL before comparing the (UTC) event ts.
+                scheduled_dt = datetime.combine(
+                    local_day, tpl.start_time, tzinfo=TZ_LOCAL
+                ).astimezone(timezone.utc)
+                diff = (event.timestamp - scheduled_dt).total_seconds() / 60
+                if diff > 0:
+                    late_minutes = int(diff)
+                    is_late = True
 
     rec = AttendanceRecord(
         company_id=device.company_id,

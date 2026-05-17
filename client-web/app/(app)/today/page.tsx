@@ -62,7 +62,7 @@ async function postCheckin(kind: QueueMode, body: unknown) {
 }
 
 interface TodayStatus {
-  last_check_in: string | null;
+  first_check_in: string | null;
   last_check_out: string | null;
   is_working: boolean;
   minutes_worked_today: number;
@@ -333,7 +333,7 @@ export default function TodayPage() {
           <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
             <Tile
               label={t("today.first_check_in")}
-              value={fmtTime(status?.last_check_in ?? null, i18n.language)}
+              value={fmtTime(status?.first_check_in ?? null, i18n.language)}
               icon={<LogIn className="size-3" />}
             />
             <Tile

@@ -526,16 +526,20 @@ async def daily_overview(
         # number ticks toward "real" worked time.
         worked_min = 0
         first_in: datetime | None = None
+        first_in_late_min = 0
         last_out: datetime | None = None
-        late_min = 0
         ot_min = 0
         pending_in: AttendanceRecord | None = None
         for r in emp_recs:
             if r.check_type == CheckType.CHECK_IN:
                 if first_in is None:
                     first_in = r.timestamp
+                    # Lateness is only meaningful for the FIRST check-in
+                    # of the day. Re-entries after a lunch break would
+                    # otherwise be measured against the original shift
+                    # start and read as "10 hours late" — nonsense.
+                    first_in_late_min = int(r.late_minutes or 0)
                 pending_in = r
-                late_min += int(r.late_minutes or 0)
             else:  # CHECK_OUT
                 last_out = r.timestamp
                 ot_min += int(r.overtime_minutes or 0)
@@ -544,6 +548,7 @@ async def daily_overview(
                     if delta > 0:
                         worked_min += int(delta)
                     pending_in = None
+        late_min = first_in_late_min
         is_in = pending_in is not None
         if is_in and pending_in is not None:
             ongoing = (now - pending_in.timestamp).total_seconds() / 60
@@ -563,9 +568,13 @@ async def daily_overview(
         if effective_tpl is None and emp.shift_template_id:
             effective_tpl = template_by_id.get(emp.shift_template_id)
         if first_in is not None and effective_tpl and effective_tpl.start_time:
+            # ShiftTemplate.start_time is wall-clock Tashkent local —
+            # comparing it to first_in (UTC) without converting was
+            # showing 5-hour false "lateness". Anchor the scheduled
+            # instant in TZ_LOCAL, then compare against UTC.
             scheduled_dt = datetime.combine(
-                day, effective_tpl.start_time, tzinfo=timezone.utc
-            )
+                day, effective_tpl.start_time, tzinfo=_TZ_LOCAL
+            ).astimezone(timezone.utc)
             diff = int((first_in - scheduled_dt).total_seconds() // 60)
             if diff > late_min:
                 late_min = max(0, diff)

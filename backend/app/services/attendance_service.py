@@ -390,8 +390,14 @@ async def check_in_for_employee(
                 select(ShiftTemplate).where(ShiftTemplate.id == emp.shift_template_id)
             )
         ).scalar_one_or_none()
+    # Lateness only counts on the FIRST check-in of the day. A re-entry
+    # after a lunch break (last_today is a CHECK_OUT) must not store the
+    # full "minutes since shift start" — otherwise an 18:18 re-entry on
+    # an 08:00 shift gets stamped as 618 min late and the analytics
+    # tab sums them up to a meaningless total.
+    is_first_check_in_today = last_today is None
     is_late, late_minutes = False, 0
-    if tpl and tpl.start_time is not None:
+    if is_first_check_in_today and tpl and tpl.start_time is not None:
         scheduled_local = datetime.combine(today, tpl.start_time, tzinfo=TZ_LOCAL)
         diff = (now_local - scheduled_local).total_seconds() / 60
         if diff > 0:
@@ -788,14 +794,19 @@ async def today_status(db: AsyncSession, user: User) -> TodayStatus:
         )
     ).scalars().all()
 
-    last_in: datetime | None = None
+    first_in: datetime | None = None
     last_out: datetime | None = None
     minutes_worked = 0
     pending_in: datetime | None = None
 
     for r in rows:
         if r.check_type == CheckType.CHECK_IN:
-            last_in = r.timestamp
+            # Capture the EARLIEST check-in (never overwrite). The
+            # hero card on the PWA labels this "Birinchi kelish";
+            # before this fix the loop kept reassigning so a lunch-
+            # re-entry overwrote the morning's actual arrival time.
+            if first_in is None:
+                first_in = r.timestamp
             pending_in = r.timestamp
         else:
             last_out = r.timestamp
@@ -858,7 +869,7 @@ async def today_status(db: AsyncSession, user: User) -> TodayStatus:
     pwa_enabled = bool((company.settings or {}).get("pwa_checkin_enabled", True))
 
     return TodayStatus(
-        last_check_in=last_in,
+        first_check_in=first_in,
         last_check_out=last_out,
         is_working=is_working,
         minutes_worked_today=minutes_worked,

@@ -66,7 +66,7 @@ export interface AttendanceRecord {
 }
 
 export interface TodayStatus {
-  last_check_in: string | null;
+  first_check_in: string | null;
   last_check_out: string | null;
   is_working: boolean;
   minutes_worked_today: number;

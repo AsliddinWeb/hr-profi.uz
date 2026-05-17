@@ -125,9 +125,9 @@ export default function HomeScreen() {
         ) : (
           <Text className="text-slate-500">{t("home.no_shift_today")}</Text>
         )}
-        {today.data?.last_check_in ? (
+        {today.data?.first_check_in ? (
           <Text className="mt-2 text-xs text-slate-500">
-            CHECK-IN: {formatTime(today.data.last_check_in)} ·{" "}
+            CHECK-IN: {formatTime(today.data.first_check_in)} ·{" "}
             {today.data.last_check_out ? `OUT: ${formatTime(today.data.last_check_out)}` : ""}
           </Text>
         ) : null}

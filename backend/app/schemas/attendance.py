@@ -71,7 +71,13 @@ class TodayStatus(BaseModel):
     *until when* (`leave_end_date`).
     """
 
-    last_check_in: datetime | None
+    # ``first_check_in`` is the earliest CHECK_IN of the day —
+    # what the PWA hero card labels "Birinchi kelish". The field
+    # used to be ``last_check_in`` but the service was already
+    # using the last value of the loop (not the first), so the UI
+    # silently showed the wrong meaning. Renamed + semantics fixed
+    # together.
+    first_check_in: datetime | None
     last_check_out: datetime | None
     is_working: bool
     minutes_worked_today: int
