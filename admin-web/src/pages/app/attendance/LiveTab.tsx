@@ -522,12 +522,15 @@ function EmployeeLiveCard({
       {/* Left accent ribbon — bolder than a top stripe and reads as an at-a-glance status */}
       <span className={cn("absolute inset-y-0 left-0 w-1.5", c.accent)} />
 
-      <div className="flex items-start gap-3">
+      {/* Full name gets its own top line — wraps freely instead of being
+          truncated so long Uzbek triple-name forms are readable end-to-end. */}
+      <div className="text-sm font-semibold leading-tight text-slate-900 group-hover:text-brand-700">
+        {row.full_name}
+      </div>
+
+      <div className="mt-2 flex items-center gap-3">
         <Avatar photo={row.photo_url} name={row.full_name} live={row.is_currently_in} />
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold text-slate-900 group-hover:text-brand-700">
-            {row.full_name}
-          </div>
           <div className="truncate text-[11px] text-slate-500">
             {row.position || row.employee_code}
           </div>
