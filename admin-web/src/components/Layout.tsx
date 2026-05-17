@@ -20,7 +20,6 @@ import {
   Search,
   Settings,
   ShieldCheck,
-  Sparkles,
   Store,
   Tablet,
   Trophy,
@@ -275,21 +274,6 @@ export function Layout() {
           ))}
         </nav>
 
-        {/* Upgrade card — only visible when sidebar is expanded. Pinning the
-            CTA to the bottom keeps it discoverable but not in the way. */}
-        {!collapsed && (
-          <div className="px-3 pb-3">
-            <div className="rounded-xl border border-brand-200 bg-gradient-to-br from-brand-500 to-brand-700 p-4 text-white shadow-sm">
-              <div className="mb-2 inline-flex size-8 items-center justify-center rounded-lg bg-white/20">
-                <Sparkles className="size-4" />
-              </div>
-              <p className="text-sm font-semibold leading-tight">{t("layout.upgrade_title")}</p>
-              <p className="mt-1 text-xs leading-snug text-brand-100">
-                {t("layout.upgrade_subtitle")}
-              </p>
-            </div>
-          </div>
-        )}
       </aside>
 
       {/* ========== Main ========== */}
