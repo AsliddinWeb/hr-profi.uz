@@ -65,28 +65,35 @@ class TelegramSettings(Base, TenantMixin, TimestampMixin):
 
 
 class TelegramSubscriber(Base, TenantMixin, TimestampMixin):
-    """One Employee → one chat_id → opt-in notification categories.
+    """One User (admin/HR/manager) → one chat_id → opt-in notification
+    categories.
+
+    Subscribers are bosses watching the business — not the employees
+    being watched. We bind to ``User`` (not ``Employee``) so the admin
+    can pick from COMPANY_ADMIN / HR_MANAGER / BRANCH_MANAGER accounts
+    instead of scrolling through warehouse staff in the employees
+    list.
 
     ``enabled_categories`` is a JSON list of ``NotificationCategory``
     string values. Missing / empty list means "subscribe to nothing";
     presence in the list means subscribed. Admin can toggle each
     category per subscriber.
 
-    The (company_id, employee_id) uniqueness keeps a single Telegram
-    binding per employee — if the operator wants to switch chats,
-    they update the chat_id in place, not duplicate the row.
+    The (company_id, user_id) uniqueness keeps a single Telegram
+    binding per user — if the operator wants to switch chats, they
+    update the chat_id in place, not duplicate the row.
     """
 
     __tablename__ = "telegram_subscribers"
     __table_args__ = (
         UniqueConstraint(
-            "company_id", "employee_id", name="uq_telegram_subscriber_employee"
+            "company_id", "user_id", name="uq_telegram_subscriber_user"
         ),
     )
 
-    employee_id: Mapped[uuid.UUID] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True),
-        ForeignKey("employees.id", ondelete="CASCADE"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )

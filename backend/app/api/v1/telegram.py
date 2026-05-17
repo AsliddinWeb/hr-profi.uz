@@ -21,9 +21,9 @@ from app.core.exceptions import (
     NotFoundError,
     ValidationAppError,
 )
-from app.models.employee import Employee
 from app.models.notification import NotificationCategory
 from app.models.telegram import TelegramSettings, TelegramSubscriber
+from app.models.user import User
 from app.schemas.common import MessageResponse
 from app.schemas.telegram import (
     TelegramEventDef,
@@ -69,12 +69,18 @@ def _to_settings_read(row: TelegramSettings) -> TelegramSettingsRead:
 
 
 def _to_subscriber_read(
-    row: TelegramSubscriber, employee_name: str | None
+    row: TelegramSubscriber,
+    *,
+    full_name: str | None = None,
+    username: str | None = None,
+    role: str | None = None,
 ) -> TelegramSubscriberRead:
     return TelegramSubscriberRead(
         id=row.id,
-        employee_id=row.employee_id,
-        employee_full_name=employee_name,
+        user_id=row.user_id,
+        user_full_name=full_name,
+        user_username=username,
+        user_role=role,
         chat_id=row.chat_id,
         label=row.label,
         enabled_categories=[
@@ -265,17 +271,26 @@ async def list_subscribers(
     if not rows:
         return []
 
-    employee_ids = [r.employee_id for r in rows]
-    name_map = dict(
-        (
+    user_ids = [r.user_id for r in rows]
+    user_map = {
+        u.id: u
+        for u in (
             await db.execute(
-                select(Employee.id, Employee.full_name).where(
-                    Employee.id.in_(employee_ids)
-                )
+                select(User)
+                .where(User.id.in_(user_ids))
+                .execution_options(skip_tenant_filter=True)
             )
-        ).all()
-    )
-    return [_to_subscriber_read(r, name_map.get(r.employee_id)) for r in rows]
+        ).scalars().all()
+    }
+    return [
+        _to_subscriber_read(
+            r,
+            full_name=(user_map.get(r.user_id).full_name if user_map.get(r.user_id) else None),
+            username=(user_map.get(r.user_id).username if user_map.get(r.user_id) else None),
+            role=(user_map.get(r.user_id).role if user_map.get(r.user_id) else None),
+        )
+        for r in rows
+    ]
 
 
 @router.post(
@@ -292,21 +307,21 @@ async def create_subscriber(
 ) -> TelegramSubscriberRead:
     cid = _ensure_settings_company_id(user, tenant_id)
 
-    employee = (
+    target_user = (
         await db.execute(
-            select(Employee).where(
-                Employee.id == data.employee_id, Employee.company_id == cid
-            )
+            select(User)
+            .where(User.id == data.user_id, User.company_id == cid)
+            .execution_options(skip_tenant_filter=True)
         )
     ).scalar_one_or_none()
-    if not employee:
-        raise NotFoundError("employee.not_found")
+    if not target_user:
+        raise NotFoundError("user.not_found")
 
     existing = (
         await db.execute(
             select(TelegramSubscriber).where(
                 TelegramSubscriber.company_id == cid,
-                TelegramSubscriber.employee_id == data.employee_id,
+                TelegramSubscriber.user_id == data.user_id,
             )
         )
     ).scalar_one_or_none()
@@ -315,7 +330,7 @@ async def create_subscriber(
 
     row = TelegramSubscriber(
         company_id=cid,
-        employee_id=data.employee_id,
+        user_id=data.user_id,
         chat_id=data.chat_id.strip(),
         label=data.label,
         enabled_categories=[c.value for c in data.enabled_categories],
@@ -324,7 +339,12 @@ async def create_subscriber(
     db.add(row)
     await db.commit()
     await db.refresh(row)
-    return _to_subscriber_read(row, employee.full_name)
+    return _to_subscriber_read(
+        row,
+        full_name=target_user.full_name,
+        username=target_user.username,
+        role=target_user.role,
+    )
 
 
 @router.patch(
@@ -363,12 +383,19 @@ async def update_subscriber(
     await db.commit()
     await db.refresh(row)
 
-    emp_name = (
+    u = (
         await db.execute(
-            select(Employee.full_name).where(Employee.id == row.employee_id)
+            select(User)
+            .where(User.id == row.user_id)
+            .execution_options(skip_tenant_filter=True)
         )
     ).scalar_one_or_none()
-    return _to_subscriber_read(row, emp_name)
+    return _to_subscriber_read(
+        row,
+        full_name=(u.full_name if u else None),
+        username=(u.username if u else None),
+        role=(u.role if u else None),
+    )
 
 
 @router.delete(

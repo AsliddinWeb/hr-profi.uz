@@ -22,12 +22,12 @@ import { Input } from "@/components/ui/Input";
 import { PageHeader } from "@/components/PageHeader";
 import { api, apiErrorMessage } from "@/lib/api";
 import type {
-  Employee,
   NotificationCategory,
   Page,
   TelegramEventDef,
   TelegramSettings,
   TelegramSubscriber,
+  User,
 } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
@@ -484,8 +484,16 @@ function SubscriberRow({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-semibold text-slate-900">
-              {sub.employee_full_name ?? sub.employee_id.slice(0, 8)}
+              {sub.user_full_name ?? sub.user_username ?? sub.user_id.slice(0, 8)}
             </span>
+            {sub.user_username && sub.user_full_name && (
+              <span className="text-xs text-slate-400">
+                @{sub.user_username}
+              </span>
+            )}
+            {sub.user_role && (
+              <Badge tone="default">{sub.user_role}</Badge>
+            )}
             {sub.label && (
               <span className="text-xs text-slate-500">
                 · {sub.label}
@@ -665,17 +673,17 @@ function CreateSubscriberDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
 
-  const empQ = useQuery({
-    queryKey: ["employees", "for-telegram"],
+  const usersQ = useQuery({
+    queryKey: ["users", "for-telegram"],
     queryFn: async () =>
       (
-        await api.get<Page<Employee>>("/employees", {
+        await api.get<Page<User>>("/users", {
           params: { size: 200, is_active: true },
         })
       ).data,
   });
 
-  const [employeeId, setEmployeeId] = useState("");
+  const [userId, setUserId] = useState("");
   const [chatId, setChatId] = useState("");
   const [label, setLabel] = useState("");
   const [cats, setCats] = useState<NotificationCategory[]>([
@@ -687,7 +695,7 @@ function CreateSubscriberDialog({ onClose }: { onClose: () => void }) {
     mutationFn: async () =>
       (
         await api.post<TelegramSubscriber>("/telegram/subscribers", {
-          employee_id: employeeId,
+          user_id: userId,
           chat_id: chatId.trim(),
           label: label.trim() || null,
           enabled_categories: cats,
@@ -702,15 +710,17 @@ function CreateSubscriberDialog({ onClose }: { onClose: () => void }) {
     onError: (e) => toast.error(apiErrorMessage(e)),
   });
 
-  const employees = useMemo(
+  const users = useMemo(
     () =>
-      (empQ.data?.items ?? []).slice().sort((a, b) =>
-        (a.full_name ?? "").localeCompare(b.full_name ?? "")
-      ),
-    [empQ.data]
+      (usersQ.data?.items ?? [])
+        .slice()
+        .sort((a, b) =>
+          (a.full_name ?? a.username).localeCompare(b.full_name ?? b.username)
+        ),
+    [usersQ.data]
   );
 
-  const canSubmit = employeeId && chatId.trim().length > 0;
+  const canSubmit = userId && chatId.trim().length > 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 px-4 py-8 backdrop-blur-sm">
@@ -734,20 +744,24 @@ function CreateSubscriberDialog({ onClose }: { onClose: () => void }) {
         <div className="space-y-3 px-5 py-4">
           <div>
             <label className="label">
-              {t("telegram.field_employee")} *
+              {t("telegram.field_user")} *
             </label>
             <select
               className="input"
-              value={employeeId}
-              onChange={(e) => setEmployeeId(e.target.value)}
+              value={userId}
+              onChange={(e) => setUserId(e.target.value)}
             >
-              <option value="">— {t("telegram.choose_employee")} —</option>
-              {employees.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.full_name} ({e.employee_code})
+              <option value="">— {t("telegram.choose_user")} —</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.full_name || u.username} — {u.role}
+                  {u.full_name ? ` (@${u.username})` : ""}
                 </option>
               ))}
             </select>
+            <p className="mt-1 text-[11px] text-slate-500">
+              {t("telegram.field_user_hint")}
+            </p>
           </div>
           <Input
             label={t("telegram.field_chat_id") + " *"}

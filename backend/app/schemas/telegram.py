@@ -64,8 +64,10 @@ class TelegramTestSendIn(BaseModel):
 
 class TelegramSubscriberRead(ORMBase):
     id: UUID
-    employee_id: UUID
-    employee_full_name: str | None = None
+    user_id: UUID
+    user_full_name: str | None = None
+    user_username: str | None = None
+    user_role: str | None = None
     chat_id: str
     label: str | None
     enabled_categories: list[NotificationCategory]
@@ -77,7 +79,7 @@ class TelegramSubscriberRead(ORMBase):
 
 
 class TelegramSubscriberCreate(BaseModel):
-    employee_id: UUID
+    user_id: UUID
     chat_id: str = Field(min_length=1, max_length=64)
     label: str | None = Field(default=None, max_length=200)
     enabled_categories: list[NotificationCategory] = Field(default_factory=list)

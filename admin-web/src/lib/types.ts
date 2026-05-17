@@ -256,8 +256,10 @@ export interface TelegramEventDef {
 
 export interface TelegramSubscriber {
   id: string;
-  employee_id: string;
-  employee_full_name: string | null;
+  user_id: string;
+  user_full_name: string | null;
+  user_username: string | null;
+  user_role: Role | string | null;
   chat_id: string;
   label: string | null;
   enabled_categories: NotificationCategory[];
