@@ -371,6 +371,10 @@ export interface AttendanceRecord {
   status: AttendanceRecordStatus;
   notes: string | null;
   created_at: string;
+  branch_name?: string | null;
+  branch_geofence_radius_m?: number | null;
+  distance_from_branch_m?: number | null;
+  within_geofence?: boolean | null;
 }
 
 export type ShiftStatusLabel =

@@ -26,6 +26,7 @@ from app.models.attendance import (
     AttendanceStatus,
     CheckType,
 )
+from app.models.branch import Branch
 from app.models.company import Company
 from app.models.employee import Employee
 from app.models.leave import LeaveRequest, LeaveStatus
@@ -120,6 +121,57 @@ async def my_history(
 
 # ---------- Admin -----------------------------------------------------------
 
+
+def _attach_geofence_diag(rec: AttendanceRecord) -> AttendanceRead:
+    """Plain ORM → schema; the geofence fields stay None until
+    ``_hydrate_geofence`` fills them in batch."""
+    return AttendanceRead.model_validate(rec)
+
+
+async def _hydrate_geofence(
+    db, items: list[AttendanceRead], rows: list[AttendanceRecord]
+) -> None:
+    """Populate ``branch_name`` / ``branch_geofence_radius_m`` /
+    ``distance_from_branch_m`` / ``within_geofence`` on every record
+    that has a ``branch_id`` + GPS coords. Single batched lookup keeps
+    a 200-row records page from N+1'ing the branches table."""
+    from app.services.attendance_service import (
+        _haversine_m,
+        _is_within_geofence,
+    )
+
+    branch_ids: set[UUID] = {
+        r.branch_id for r in rows if r.branch_id is not None
+    }
+    if not branch_ids:
+        return
+    branches = (
+        await db.execute(select(Branch).where(Branch.id.in_(branch_ids)))
+    ).scalars().all()
+    by_id: dict[UUID, Branch] = {b.id: b for b in branches}
+
+    for item, rec in zip(items, rows):
+        b = by_id.get(rec.branch_id) if rec.branch_id else None
+        if b is None:
+            continue
+        item.branch_name = b.name
+        if b.geofence_radius_m is not None:
+            item.branch_geofence_radius_m = float(b.geofence_radius_m)
+        if (
+            rec.latitude is not None
+            and rec.longitude is not None
+            and b.latitude is not None
+            and b.longitude is not None
+        ):
+            dist = _haversine_m(
+                b.latitude, b.longitude, rec.latitude, rec.longitude
+            )
+            item.distance_from_branch_m = round(dist, 1)
+            item.within_geofence = _is_within_geofence(
+                b, rec.latitude, rec.longitude
+            )
+
+
 @router.get(
     "/records",
     response_model=Page[AttendanceRead],
@@ -162,8 +214,13 @@ async def list_records(
             .limit(size)
         )
     ).scalars().all()
+    items = [_attach_geofence_diag(r) for r in rows]
+    # Populate geofence diagnostics in a single batched branch lookup
+    # so the per-record fields (distance_from_branch_m, branch_name,
+    # within_geofence) can render in the UI without N+1 queries.
+    await _hydrate_geofence(db, items, rows)
     return Page[AttendanceRead](
-        items=[AttendanceRead.model_validate(r) for r in rows],
+        items=items,
         total=total,
         page=page,
         size=size,

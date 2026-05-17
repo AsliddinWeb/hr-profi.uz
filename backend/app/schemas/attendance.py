@@ -52,6 +52,14 @@ class AttendanceRead(ORMBase):
     status: AttendanceStatus
     notes: str | None
     created_at: datetime
+    # Geofence diagnostics — populated by ``list_records`` /
+    # ``get_record`` when both the branch coords and the record's GPS
+    # are present. Lets the UI render "412m from branch (radius 150m)"
+    # without recomputing client-side.
+    branch_name: str | None = None
+    branch_geofence_radius_m: float | None = None
+    distance_from_branch_m: float | None = None
+    within_geofence: bool | None = None
 
 
 class TodayStatus(BaseModel):

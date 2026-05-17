@@ -3,15 +3,20 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
+  AlertTriangle,
+  Building2,
   Camera,
+  CheckCircle2,
   Clock,
   FileEdit,
   LogIn,
   LogOut,
   MapPin,
   QrCode,
+  Ruler,
   ScanFace,
   Smartphone,
+  StickyNote,
   Tablet,
   Trash2,
   TrendingUp,
@@ -295,7 +300,7 @@ function RecordRow({
             )}
           </div>
 
-          {/* Late / OT */}
+          {/* Late / OT / face match */}
           <div className="mt-1.5 flex flex-wrap gap-1.5 text-[11px]">
             {record.late_minutes > 0 && (
               <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-1.5 py-0.5 font-semibold text-amber-700 ring-1 ring-amber-200">
@@ -309,13 +314,61 @@ function RecordRow({
                 +{fmtDurationShort(record.overtime_minutes)} {t("attendance.live_overtime")}
               </span>
             )}
+            {record.is_early_leave && (
+              <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-1.5 py-0.5 font-semibold text-amber-700 ring-1 ring-amber-200">
+                <LogOut className="size-3" />
+                {t("attendance.live_detail_early_leave")}
+              </span>
+            )}
             {record.face_match_score && (
               <span className="inline-flex items-center gap-1 rounded-md bg-slate-50 px-1.5 py-0.5 text-slate-600 ring-1 ring-slate-200">
                 <ScanFace className="size-3" />
-                {Number(record.face_match_score).toFixed(2)}
+                {t("attendance.live_detail_face_match")}: {Number(record.face_match_score).toFixed(2)}
               </span>
             )}
           </div>
+
+          {/* Geofence diagnostics — one line that summarises distance,
+              radius and whether the GPS fix put the employee inside
+              the branch. */}
+          {(record.branch_name || record.distance_from_branch_m != null) && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px]">
+              {record.branch_name && (
+                <span className="inline-flex items-center gap-1 text-slate-700">
+                  <Building2 className="size-3 text-slate-500" />
+                  <span className="font-medium">{record.branch_name}</span>
+                </span>
+              )}
+              {record.distance_from_branch_m != null && (
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 font-medium",
+                    record.within_geofence ? "text-emerald-700" : "text-rose-700"
+                  )}
+                >
+                  <Ruler className="size-3" />
+                  {Math.round(record.distance_from_branch_m)}m
+                  {record.branch_geofence_radius_m != null && (
+                    <span className="text-slate-500">
+                      / {Math.round(record.branch_geofence_radius_m)}m
+                    </span>
+                  )}
+                </span>
+              )}
+              {record.within_geofence === true && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 font-semibold text-emerald-700 ring-1 ring-emerald-200">
+                  <CheckCircle2 className="size-3" />
+                  {t("attendance.live_detail_inside_geofence")}
+                </span>
+              )}
+              {record.within_geofence === false && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-1.5 py-0.5 font-semibold text-rose-700 ring-1 ring-rose-200">
+                  <AlertTriangle className="size-3" />
+                  {t("attendance.live_detail_outside_geofence")}
+                </span>
+              )}
+            </div>
+          )}
 
           {/* GPS link */}
           {record.latitude != null && record.longitude != null && (
@@ -337,7 +390,10 @@ function RecordRow({
 
           {/* Notes */}
           {record.notes && (
-            <p className="mt-1 text-[11px] text-slate-600">{record.notes}</p>
+            <p className="mt-1 inline-flex items-start gap-1 rounded-md bg-slate-50 px-1.5 py-1 text-[11px] text-slate-600 ring-1 ring-slate-200">
+              <StickyNote className="size-3 shrink-0 text-slate-400 mt-0.5" />
+              {record.notes}
+            </p>
           )}
 
           {/* Delete (hard) — for kiosk mis-fires / bad data the
