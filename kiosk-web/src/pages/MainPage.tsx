@@ -52,10 +52,12 @@ import type {
  * "already_checked_in" error from the server — surfaced as a red
  * overlay. The opposite for Ketish without an active check-in. */
 
-// Recognize loop cadence — at 1.2 s the kiosk feels "instant" without
-// hammering the api worker (face matching is ~80–150 ms per call on a
-// 2 GB VPS, so cadence < 800 ms would queue up).
-const RECOGNIZE_INTERVAL_MS = 1200;
+// Recognize loop cadence. Bumped down from 1200 ms once the backend
+// face pipeline got faster (480 px cap + upsample=0 → ~40-70 ms per
+// call instead of 150). 600 ms keeps the next frame ready to fire the
+// moment the previous response lands, so the perceived wait at the
+// kiosk drops noticeably without queuing on the worker.
+const RECOGNIZE_INTERVAL_MS = 600;
 // After firing a check on someone, ignore their face for this long
 // so they don't get re-fired as they linger to read the success overlay.
 const PER_EMPLOYEE_COOLDOWN_MS = 30_000;

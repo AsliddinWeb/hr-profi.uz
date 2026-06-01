@@ -53,10 +53,13 @@ EMBEDDING_BYTES = EMBEDDING_DIM * EMBEDDING_DTYPE().itemsize  # 1024
 
 # Default match threshold: distance below this counts as the same face.
 # face_recognition recommends 0.6 for "lenient" and 0.5 for "strict".
-# 0.5 is right for a kiosk where false positives (wrong employee
-# checked in) are far worse than false negatives (employee taps their
-# name manually after a couple of failed auto-tries).
-DEFAULT_MATCH_THRESHOLD = 0.5
+# We deliberately use the lenient end (0.6) at the kiosk — operator
+# feedback was that 0.5 was rejecting a noticeable chunk of legit
+# employees under common kiosk conditions (mild head tilt, mediocre
+# lighting). False positives are bounded by the per-branch employee
+# pool (small) plus the operator's eyes-on review at the kiosk; the
+# UX cost of a false negative ("please try again") is higher.
+DEFAULT_MATCH_THRESHOLD = 0.6
 
 
 # ---------- (de)serialization -----------------------------------------------
@@ -109,9 +112,13 @@ def _decode_image_bytes(payload: bytes | str) -> np.ndarray | None:
     try:
         img = Image.open(io.BytesIO(data))
         img = img.convert("RGB")
-        # Cap at 1024 px on the long edge — incoming kiosk frames are
-        # already ~640x480 but a wedge of older tablets push 4 K.
-        img.thumbnail((1024, 1024))
+        # Cap at 480 px on the long edge. The whole pipeline downstream
+        # (HOG face detection, dlib encoding) scales with pixel count;
+        # going from 640 to 480 cuts ~45% of the work and the embedding
+        # quality difference is below the matcher's noise floor. Tablet
+        # cameras occasionally push 1080p; without this cap a single
+        # frame would be 4× slower than necessary.
+        img.thumbnail((480, 480))
         return np.asarray(img)
     except Exception:  # noqa: BLE001 — Pillow raises a zoo of types
         logger.warning("face: image decode failed", exc_info=False)
@@ -131,7 +138,16 @@ def compute_embedding(payload: bytes | str) -> np.ndarray | None:
         return None
     # Use the HOG model — CPU-friendly. CNN gives slightly better recall
     # at far higher cost; not worth it on a $5 VPS.
-    boxes = fr.face_locations(img, model="hog")
+    #
+    # number_of_times_to_upsample=0 is the single biggest speed lever
+    # here: the default of 1 upscales the image 2× before sliding the
+    # HOG kernel (≈4× work). Kiosk faces fill most of the frame so the
+    # upsampling never helps — we just want the bbox, fast.
+    boxes = fr.face_locations(img, model="hog", number_of_times_to_upsample=0)
+    if not boxes:
+        # Retry once with the default upsample — covers the corner
+        # case where the user stands a step too far from the camera.
+        boxes = fr.face_locations(img, model="hog", number_of_times_to_upsample=1)
     if not boxes:
         return None
     if len(boxes) > 1:

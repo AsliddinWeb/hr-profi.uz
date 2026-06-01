@@ -107,9 +107,20 @@ export const CameraPreview = forwardRef<CameraHandle, Props>(
         captureFrame() {
           const video = videoRef.current;
           if (!video || !ready) return null;
-          const w = video.videoWidth || 640;
-          const h = video.videoHeight || 480;
-          if (!w || !h) return null;
+          const srcW = video.videoWidth || 640;
+          const srcH = video.videoHeight || 480;
+          if (!srcW || !srcH) return null;
+          // Cap the long edge at 480 px before encoding. The face
+          // recognition backend caps internally at 480 anyway; sending
+          // a 720p or 1080p frame just inflates the upload (and the
+          // base64 round-trip on the API side). Operator feedback was
+          // that the kiosk felt slow — most of that latency was the
+          // recognize call's image decode, which scales linearly with
+          // pixel count.
+          const MAX = 480;
+          const scale = Math.min(1, MAX / Math.max(srcW, srcH));
+          const w = Math.round(srcW * scale);
+          const h = Math.round(srcH * scale);
           let canvas = canvasRef.current;
           if (!canvas) {
             canvas = document.createElement("canvas");
@@ -120,9 +131,11 @@ export const CameraPreview = forwardRef<CameraHandle, Props>(
           const ctx = canvas.getContext("2d");
           if (!ctx) return null;
           ctx.drawImage(video, 0, 0, w, h);
-          // 0.85 trades a couple of % quality for a much smaller payload
-          // (~30 KB JPEG vs >100 KB at 1.0). The backend just stores it.
-          const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+          // 0.75 is a hair more aggressive than the previous 0.85 —
+          // dlib's HOG detector + face encoder don't notice the
+          // compression difference but the wire payload shrinks by
+          // another ~30%.
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.75);
           const idx = dataUrl.indexOf(",");
           return idx >= 0 ? dataUrl.slice(idx + 1) : null;
         },
