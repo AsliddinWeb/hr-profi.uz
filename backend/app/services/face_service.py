@@ -53,13 +53,21 @@ EMBEDDING_BYTES = EMBEDDING_DIM * EMBEDDING_DTYPE().itemsize  # 1024
 
 # Default match threshold: distance below this counts as the same face.
 # face_recognition recommends 0.6 for "lenient" and 0.5 for "strict".
-# We deliberately use the lenient end (0.6) at the kiosk — operator
-# feedback was that 0.5 was rejecting a noticeable chunk of legit
-# employees under common kiosk conditions (mild head tilt, mediocre
-# lighting). False positives are bounded by the per-branch employee
-# pool (small) plus the operator's eyes-on review at the kiosk; the
-# UX cost of a false negative ("please try again") is higher.
-DEFAULT_MATCH_THRESHOLD = 0.6
+# 0.5 is right for a kiosk where false positives ("logged X as Y")
+# are far worse than false negatives ("please try again"). An
+# earlier bump to 0.6 caused real cross-identification in
+# production, so we walked it back.
+DEFAULT_MATCH_THRESHOLD = 0.5
+
+# Minimum gap between the best and second-best candidate's distance
+# for a match to count. Two siblings / similar-looking employees can
+# both land within the threshold; without this guard the matcher
+# picks whichever is marginally closer and we silently log the
+# wrong identity. 0.04 is roughly the within-person jitter
+# face_recognition produces between frames of the same face, so a
+# match that's tighter than that against the runner-up is no
+# better than the noise floor.
+MIN_MATCH_GAP = 0.04
 
 
 # ---------- (de)serialization -----------------------------------------------
@@ -184,25 +192,39 @@ def find_match(
     candidates: Iterable[Candidate],
     *,
     threshold: float = DEFAULT_MATCH_THRESHOLD,
+    min_gap: float = MIN_MATCH_GAP,
 ) -> Match | None:
     """Brute-force nearest-neighbour over ``candidates``.
 
     ``threshold`` is the *maximum* distance still considered a match.
-    Returns the closest candidate that satisfies it, or ``None``.
+    ``min_gap`` rejects the match if the runner-up is within that
+    distance of the winner — protects against the embedding being
+    "near two people at once" and silently picking the wrong one.
     """
     best: Match | None = None
+    second_distance: float | None = None
     for c in candidates:
         if c.embedding is None or c.embedding.shape != (EMBEDDING_DIM,):
             continue
         # Euclidean distance — face_recognition uses this internally.
         dist = float(np.linalg.norm(target - c.embedding))
         if best is None or dist < best.distance:
+            if best is not None:
+                second_distance = best.distance
             best = Match(
                 employee_id=c.employee_id,
                 distance=dist,
                 score=max(0.0, min(1.0, 1.0 - dist)),
             )
+        elif second_distance is None or dist < second_distance:
+            second_distance = dist
+
     if best is None or best.distance > threshold:
+        return None
+    # Ambiguous between two enrolled employees — refuse rather than
+    # guess. The operator can re-try (lighting / angle nudge usually
+    # breaks the tie) or fall back to manual employee pick.
+    if second_distance is not None and (second_distance - best.distance) < min_gap:
         return None
     return best
 

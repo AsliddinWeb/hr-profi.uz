@@ -63,7 +63,8 @@
     "fail_hint": "Look straight into the camera or contact your admin.",
     "late": "Late by {{minutes}}",
     "overtime": "Overtime: {{minutes}}",
-    "tap_anywhere": "Tap anywhere to close"
+    "tap_anywhere": "Tap anywhere to close",
+    "continue": "Continue"
   },
   "scan": {
     "cancel": "Back"

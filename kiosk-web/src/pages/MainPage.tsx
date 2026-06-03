@@ -76,11 +76,6 @@ type Mode = "idle" | "in" | "out";
 // their face, return to idle after this so the camera doesn't stay
 // powered indefinitely.
 const SCAN_TIMEOUT_MS = 30_000;
-// How long the success overlay stays before we return to idle. Kept
-// short on purpose — Face-ID terminals at office entrances flash for
-// ~1 s and immediately go back to idle so the next person can step
-// up without staring at someone else's name.
-const SUCCESS_DWELL_MS = 1500;
 
 export function MainPage() {
   const { t, i18n } = useTranslation();
@@ -178,17 +173,12 @@ export function MainPage() {
     },
   });
 
-  // After a successful check-in/out, leave the green overlay visible
-  // for a moment so the operator can read the time, then drop both
-  // the overlay AND the scanning mode so the kiosk returns to idle.
-  useEffect(() => {
-    if (!result) return;
-    const id = window.setTimeout(() => {
-      setResult(null);
-      setMode("idle");
-    }, SUCCESS_DWELL_MS);
-    return () => window.clearTimeout(id);
-  }, [result]);
+  // Success overlay stays up until the operator taps "Davom etish".
+  // Earlier the overlay auto-dismissed after 1.5 s and the camera
+  // resumed scanning, which was disorienting: the just-greeted
+  // person would still be standing in front of the lens and could
+  // immediately trigger a second match attempt for someone else.
+  // Manual dismissal forces a clean "next person, please" reset.
 
   // Auto-clear error toast.
   useEffect(() => {
@@ -429,11 +419,20 @@ export function MainPage() {
             },
             direction: optimistic.direction,
           }}
-          onClose={() => setOptimistic(null)}
         />
       )}
 
-      {result && <ResultOverlay result={result} onClose={() => setResult(null)} />}
+      {result && (
+        <ResultOverlay
+          result={result}
+          onContinue={() => {
+            // Manual reset — clear the overlay AND drop back to the
+            // idle picker so the next person starts the flow fresh.
+            setResult(null);
+            setMode("idle");
+          }}
+        />
+      )}
 
       {/* Red "not recognized" overlay — fires after N consecutive
           low-confidence frames. Auto-dismisses; clicking dismisses
@@ -773,11 +772,11 @@ function ConfirmModal({
 function ResultOverlay({
   result,
   optimistic,
-  onClose,
+  onContinue,
 }: {
   result: { response: KioskAttendanceResponse; direction: Direction };
   optimistic?: boolean;
-  onClose: () => void;
+  onContinue?: () => void;
 }) {
   const { t } = useTranslation();
   const isIn = result.direction === "IN";
@@ -791,7 +790,6 @@ function ResultOverlay({
         "fixed inset-0 z-40 flex flex-col items-center justify-center p-6 text-center",
         gradient
       )}
-      onClick={onClose}
     >
       <div className="flex size-36 items-center justify-center rounded-full bg-white/20 shadow-xl ring-8 ring-white/30 backdrop-blur">
         <span className="text-7xl drop-shadow-lg">{isIn ? "✓" : "↓"}</span>
@@ -835,10 +833,18 @@ function ResultOverlay({
           )}
         </div>
       )}
-      {!optimistic && (
-        <p className="mt-10 text-sm font-medium text-white/70">
-          {t("result.tap_anywhere")}
-        </p>
+      {/* Explicit "next person" button. We deliberately don't bind
+          the click anywhere else on the overlay — a stray tap from
+          the just-greeted person walking past would otherwise drop
+          us back into a live camera that's still pointing at them. */}
+      {!optimistic && onContinue && (
+        <button
+          type="button"
+          onClick={onContinue}
+          className="mt-10 rounded-2xl bg-white px-10 py-4 text-xl font-bold text-slate-900 shadow-xl ring-1 ring-white/40 transition hover:scale-105 active:scale-95"
+        >
+          {t("result.continue")}
+        </button>
       )}
     </div>
   );

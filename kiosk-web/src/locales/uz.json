@@ -63,7 +63,8 @@
     "fail_hint": "Iltimos, kameraga to'g'ri qarang yoki adminga xabar bering.",
     "late": "Kechikish: {{minutes}}",
     "overtime": "Qo'shimcha: {{minutes}}",
-    "tap_anywhere": "Yopish uchun bosing"
+    "tap_anywhere": "Yopish uchun bosing",
+    "continue": "Davom etish"
   },
   "scan": {
     "cancel": "Orqaga"
