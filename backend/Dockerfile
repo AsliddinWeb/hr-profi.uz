@@ -24,18 +24,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libffi-dev \
     shared-mime-info \
     fonts-dejavu-core \
-    # dlib build (used by face_recognition). cmake compiles dlib from
-    # source; libopenblas+liblapack give it a fast BLAS path so the
-    # 128-d face embedding takes ~30 ms instead of ~200 ms per call on
-    # cheap VPS CPUs. The X11/GTK deps the upstream README mentions are
-    # GUI-only (camera preview); we don't need them on the server.
-    cmake \
-    libopenblas-dev \
-    liblapack-dev \
-    # InsightFace pulls in opencv-python-headless which links against
-    # libGL even in headless mode (used by some OpenCV image-decode
-    # paths). Adding libgl1 + libglib2.0-0 keeps `import cv2` from
-    # blowing up on container start with "libGL.so.1: cannot open".
+    # opencv-python-headless still links against libGL even in
+    # headless mode (used by some OpenCV image-decode paths) and
+    # libglib for GIO. Without these ``import cv2`` blows up with
+    # "libGL.so.1: cannot open".
     libgl1 \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
@@ -50,30 +42,27 @@ WORKDIR /app
 # `--build-arg INSTALL_DEV=false` for a smaller, lockdown image.
 ARG INSTALL_DEV=true
 COPY pyproject.toml poetry.lock* /app/
-# Re-resolve the lockfile if pyproject.toml has drifted (typical
-# during local-only dependency adds where we don't commit the lock).
-# ``--no-update`` keeps existing pins intact; new deps are added with
-# fresh resolution. Then install for real.
-RUN poetry lock --no-update || poetry lock
+# Drop the committed poetry.lock if its hash doesn't match the
+# current pyproject.toml so the install step doesn't fail with
+# "lockfile is not consistent". Then resolve fresh and install.
+RUN poetry check --lock --quiet 2>/dev/null || rm -f poetry.lock
+RUN poetry lock
 RUN if [ "$INSTALL_DEV" = "true" ]; then \
         poetry install --no-root --with dev; \
     else \
         poetry install --no-root --without dev; \
     fi
 
-# Pre-bake the InsightFace model so the first /recognize call doesn't
-# pay a 5-10 s download on a cold worker. Failure is non-fatal — the
-# runtime loader falls back to the on-demand download path, which is
-# what insightface does by default. Pinning the env var so the same
-# directory wins at runtime.
-ENV INSIGHTFACE_ROOT=/app/.insightface_models
-ENV INSIGHTFACE_MODEL=buffalo_s
-RUN mkdir -p $INSIGHTFACE_ROOT && \
-    python -c "from insightface.app import FaceAnalysis; \
-app = FaceAnalysis(name='${INSIGHTFACE_MODEL}', root='${INSIGHTFACE_ROOT}', \
-providers=['CPUExecutionProvider'], allowed_modules=['detection','recognition']); \
-app.prepare(ctx_id=-1, det_size=(320, 320))" \
-    || echo "WARN: insightface model prefetch failed; will lazy-load at runtime"
+# Pre-bake the face-recognition ONNX models (SCRFD detector +
+# ArcFace recogniser) so the first /recognize call doesn't pay a
+# ~10-second download on a cold worker. ``--allow-failure`` makes
+# this step non-fatal if the build environment has no internet;
+# the runtime loader will surface a clear error and the operator
+# can re-run the script via ``docker compose exec api …``.
+ENV FACE_MODEL_DIR=/app/.face_models
+COPY scripts/download_face_models.py /app/scripts/
+RUN mkdir -p $FACE_MODEL_DIR && \
+    python /app/scripts/download_face_models.py --out $FACE_MODEL_DIR --allow-failure
 
 # Application code
 COPY . /app
