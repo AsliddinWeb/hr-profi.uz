@@ -32,6 +32,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
     libopenblas-dev \
     liblapack-dev \
+    # InsightFace pulls in opencv-python-headless which links against
+    # libGL even in headless mode (used by some OpenCV image-decode
+    # paths). Adding libgl1 + libglib2.0-0 keeps `import cv2` from
+    # blowing up on container start with "libGL.so.1: cannot open".
+    libgl1 \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -sSL https://install.python-poetry.org | python3 -
@@ -44,11 +50,30 @@ WORKDIR /app
 # `--build-arg INSTALL_DEV=false` for a smaller, lockdown image.
 ARG INSTALL_DEV=true
 COPY pyproject.toml poetry.lock* /app/
+# Re-resolve the lockfile if pyproject.toml has drifted (typical
+# during local-only dependency adds where we don't commit the lock).
+# ``--no-update`` keeps existing pins intact; new deps are added with
+# fresh resolution. Then install for real.
+RUN poetry lock --no-update || poetry lock
 RUN if [ "$INSTALL_DEV" = "true" ]; then \
         poetry install --no-root --with dev; \
     else \
         poetry install --no-root --without dev; \
     fi
+
+# Pre-bake the InsightFace model so the first /recognize call doesn't
+# pay a 5-10 s download on a cold worker. Failure is non-fatal — the
+# runtime loader falls back to the on-demand download path, which is
+# what insightface does by default. Pinning the env var so the same
+# directory wins at runtime.
+ENV INSIGHTFACE_ROOT=/app/.insightface_models
+ENV INSIGHTFACE_MODEL=buffalo_s
+RUN mkdir -p $INSIGHTFACE_ROOT && \
+    python -c "from insightface.app import FaceAnalysis; \
+app = FaceAnalysis(name='${INSIGHTFACE_MODEL}', root='${INSIGHTFACE_ROOT}', \
+providers=['CPUExecutionProvider'], allowed_modules=['detection','recognition']); \
+app.prepare(ctx_id=-1, det_size=(320, 320))" \
+    || echo "WARN: insightface model prefetch failed; will lazy-load at runtime"
 
 # Application code
 COPY . /app
